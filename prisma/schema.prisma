@@ -1,0 +1,36 @@
+// This is your Prisma schema file.
+// Learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Defines the database connection
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Defines the Prisma Client generator
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Enum for User Roles
+enum UserRole {
+  USER
+  ADMIN
+}
+
+// User Model for your application
+model User {
+  id               String     @id @default(cuid())
+  name             String?
+  email            String     @unique
+  emailVerified    DateTime?
+  password         String?    // To store the hashed password
+  image            String?
+  dob              DateTime?
+  nationality      String?
+  address          String?
+  identityVerified Boolean    @default(false)
+  role             UserRole   @default(USER)
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+}
