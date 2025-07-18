@@ -1,36 +1,145 @@
-// This is your Prisma schema file.
-// Learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Defines the database connection
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
-// Defines the Prisma Client generator
 generator client {
   provider = "prisma-client-js"
 }
 
-// Enum for User Roles
+// --- Enums ---
+enum TravelStyle {
+  LUXURY
+  ADVENTURE
+  RELAXATION
+  CULTURAL
+  BUDGET
+}
+
+enum ActivityLevel {
+  LOW
+  MEDIUM
+  HIGH
+}
+
 enum UserRole {
   USER
   ADMIN
 }
 
-// User Model for your application
+enum TripStatus {
+  PLANNING
+  CONFIRMED
+  COMPLETED
+}
+
+enum RewardType {
+  DISCOUNT
+  FREE_UPGRADE
+  EXCLUSIVE_OFFER
+}
+
+
+// --- Models ---
 model User {
-  id               String     @id @default(cuid())
+  id               String    @id @default(cuid())
   name             String?
-  email            String     @unique
+  email            String    @unique
   emailVerified    DateTime?
-  password         String?    // To store the hashed password
+  password         String
   image            String?
   dob              DateTime?
   nationality      String?
   address          String?
-  identityVerified Boolean    @default(false)
-  role             UserRole   @default(USER)
-  createdAt        DateTime   @default(now())
-  updatedAt        DateTime   @updatedAt
+  identityVerified Boolean   @default(false)
+  role             UserRole  @default(USER)
+
+  interests       String[]      @default([])
+  travelStyle     TravelStyle?
+  activityLevel   ActivityLevel?
+  profileComplete Boolean       @default(false)
+  
+  points          Int      @default(0)
+  unlockedRewards Reward[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  trips Trip[]
+  posts    Post[]
+  likes    Like[]
+  comments Comment[]
+}
+
+model Trip {
+  id              String     @id @default(cuid())
+  travelStartDate DateTime
+  travelEndDate   DateTime
+  budget          Float
+  souvenirType    String?
+  status          TripStatus @default(PLANNING)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+  
+  suggestions Suggestion[]
+}
+
+model Reward {
+  id             String     @id @default(cuid())
+  name           String
+  description    String
+  pointsRequired Int
+  type           RewardType
+  partnerName    String?
+
+  unlockedBy User[]
+}
+
+model Post {
+  id        String   @id @default(cuid())
+  content   String
+  imageUrl  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  authorId String
+  author   User   @relation(fields: [authorId], references: [id])
+
+  likes    Like[]
+  comments Comment[]
+}
+
+model Like {
+  id     String @id @default(cuid())
+  post   Post   @relation(fields: [postId], references: [id])
+  postId String
+  user   User   @relation(fields: [userId], references: [id])
+  userId String
+
+  @@unique([userId, postId])
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  text      String
+  createdAt DateTime @default(now())
+
+  post   Post   @relation(fields: [postId], references: [id])
+  postId String
+  author   User   @relation(fields: [authorId], references: [id])
+  authorId String
+}
+
+model Suggestion {
+  id        String @id @default(cuid()) // This is the required ID field
+  title     String
+  summary   String @db.Text
+  itinerary Json
+
+  trip   Trip   @relation(fields: [tripId], references: [id])
+  tripId String
 }

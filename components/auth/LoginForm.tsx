@@ -1,4 +1,3 @@
-// components/auth/LoginForm.tsx
 'use client';
 
 import { useState } from 'react';
@@ -16,19 +15,16 @@ export default function LoginForm() {
     setError('');
 
     try {
-      // This is the core of the login logic
-      const result = await signIn('credentials', {
-        redirect: false, // <-- This is important to handle errors here
+      const result = await signIn('credentials', { // This string must match the provider ID
+        redirect: false,
         email,
         password,
       });
 
       if (result?.ok) {
-        // On success, redirect to the dashboard
         router.push('/dashboard');
-        router.refresh(); // Refresh the page to update session state
+        router.refresh();
       } else {
-        // On failure, set an error message
         setError('Invalid email or password. Please try again.');
       }
     } catch (err) {
