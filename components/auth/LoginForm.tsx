@@ -3,52 +3,83 @@
 import { useState } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import toast from 'react-hot-toast';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import Link from 'next/link';
 
 export default function LoginForm() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setIsLoading(true);
 
     try {
-      const result = await signIn('credentials', { // This string must match the provider ID
+      const result = await signIn('credentials', {
         redirect: false,
         email,
         password,
       });
 
       if (result?.ok) {
+        toast.success('Login successful!');
         router.push('/dashboard');
         router.refresh();
       } else {
-        setError('Invalid email or password. Please try again.');
+        toast.error(result?.error || 'Invalid email or password.');
       }
     } catch (err) {
       console.error(err);
-      setError('An unexpected error occurred during login.');
+      toast.error('An unexpected error occurred during login.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit}>
-      <div style={{ marginBottom: '15px' }}>
-        <label>Email</label>
-        <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required style={{ width: '100%', padding: '8px', marginTop: '5px' }} />
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="email">Email</Label>
+        <Input
+          id="email"
+          type="email"
+          placeholder="m@example.com"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+        />
       </div>
-      <div style={{ marginBottom: '15px' }}>
-        <label>Password</label>
-        <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required style={{ width: '100%', padding: '8px', marginTop: '5px' }} />
+      <div className="space-y-2">
+        <div className="flex items-center">
+          <Label htmlFor="password">Password</Label>
+          <Link href="#" className="ml-auto inline-block text-sm underline">
+            Forgot your password?
+          </Link>
+        </div>
+        <Input
+          id="password"
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
+        />
       </div>
-
-      {error && <p style={{ color: 'red' }}>{error}</p>}
-
-      <button type="submit" style={{ width: '100%', padding: '10px', backgroundColor: '#0070f3', color: 'white', border: 'none', borderRadius: '5px' }}>
-        Login
-      </button>
+      
+      <Button type="submit" disabled={isLoading} className="w-full">
+        {isLoading ? 'Logging in...' : 'Login'}
+      </Button>
+      
+      <div className="mt-4 text-center text-sm">
+        Don&apos;t have an account?{" "}
+        <Link href="/register" className="underline">
+          Sign up
+        </Link>
+      </div>
     </form>
   );
 }

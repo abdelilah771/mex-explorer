@@ -1,5 +1,5 @@
 import { getServerSession } from 'next-auth';
-import { authOptions } from '../../api/auth/[...nextauth]/route';
+import { authOptions } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { PrismaClient } from '@prisma/client';
 import RewardCard from '@/components/rewards/RewardCard';
@@ -12,6 +12,7 @@ export default async function RewardsPage() {
     redirect('/login');
   }
 
+  // Fetches user and rewards data directly
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
   });

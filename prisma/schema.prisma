@@ -39,7 +39,6 @@ enum RewardType {
   EXCLUSIVE_OFFER
 }
 
-
 // --- Models ---
 model User {
   id               String    @id @default(cuid())
@@ -48,24 +47,37 @@ model User {
   emailVerified    DateTime?
   password         String
   image            String?
+  bio              String?
   dob              DateTime?
   nationality      String?
   address          String?
   identityVerified Boolean   @default(false)
+  documentUrl      String?
   role             UserRole  @default(USER)
 
+  // Profile Quiz Data
   interests       String[]      @default([])
   travelStyle     TravelStyle?
   activityLevel   ActivityLevel?
   profileComplete Boolean       @default(false)
   
-  points          Int      @default(0)
+  // Gamification
+  points          Int           @default(0)
   unlockedRewards Reward[]
+  achievements    Achievement[] // Relation to earned achievements
+
+  // --- NEW: Privacy Settings ---
+  isProfilePublic Boolean @default(true)
+
+  // --- NEW: Follow System ---
+  following   User[]   @relation("UserFollows")
+  followedBy  User[]   @relation("UserFollows")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   
-  trips Trip[]
+  // Relations
+  trips    Trip[]
   posts    Post[]
   likes    Like[]
   comments Comment[]
@@ -78,14 +90,20 @@ model Trip {
   budget          Float
   souvenirType    String?
   status          TripStatus @default(PLANNING)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  userId          String
+  user            User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  suggestions     Suggestion[]
+}
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  userId String
-  user   User   @relation(fields: [userId], references: [id])
-  
-  suggestions Suggestion[]
+model Suggestion {
+  id        String @id @default(cuid())
+  title     String
+  summary   String @db.Text
+  itinerary Json
+  trip      Trip   @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  tripId    String
 }
 
 model Reward {
@@ -95,8 +113,7 @@ model Reward {
   pointsRequired Int
   type           RewardType
   partnerName    String?
-
-  unlockedBy User[]
+  unlockedBy     User[]
 }
 
 model Post {
@@ -105,21 +122,18 @@ model Post {
   imageUrl  String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  authorId String
-  author   User   @relation(fields: [authorId], references: [id])
-
-  likes    Like[]
-  comments Comment[]
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  likes     Like[]
+  comments  Comment[]
 }
 
 model Like {
   id     String @id @default(cuid())
-  post   Post   @relation(fields: [postId], references: [id])
   postId String
-  user   User   @relation(fields: [userId], references: [id])
+  post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
   userId String
-
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   @@unique([userId, postId])
 }
 
@@ -127,19 +141,17 @@ model Comment {
   id        String   @id @default(cuid())
   text      String
   createdAt DateTime @default(now())
-
-  post   Post   @relation(fields: [postId], references: [id])
-  postId String
-  author   User   @relation(fields: [authorId], references: [id])
-  authorId String
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
 }
 
-model Suggestion {
-  id        String @id @default(cuid()) // This is the required ID field
-  title     String
-  summary   String @db.Text
-  itinerary Json
-
-  trip   Trip   @relation(fields: [tripId], references: [id])
-  tripId String
+// --- NEW: Achievement Model for Badges ---
+model Achievement {
+  id          String @id @default(cuid())
+  name        String @unique
+  description String
+  iconUrl     String // URL to the badge icon
+  users       User[] // Relation to users who have earned it
 }

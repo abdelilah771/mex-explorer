@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-// This import must use curly braces
 import { NextAuthProvider } from "@/components/auth/NextAuthProvider";
 import { Toaster } from "react-hot-toast";
+import { ThemeProvider } from "@/components/theme-provider"; // 1. Import ThemeProvider
+import Navbar from "@/components/navigation/Navbar";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -26,14 +27,22 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <NextAuthProvider>
-          <Toaster position="top-center" />
-          {children}
-        </NextAuthProvider>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <NextAuthProvider>
+            <Toaster position="top-center" />
+            <Navbar />
+            <main>{children}</main>
+          </NextAuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

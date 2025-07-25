@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
-import { authOptions } from '../auth/[...nextauth]/route';
+import { authOptions } from '@/lib/auth';
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
-const POINTS_PER_POST = 10; // Define points awarded for a new post
+const POINTS_PER_POST = 10;
 
+// Handler for creating a new post and awarding points
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
   const userId = session?.user?.id;
@@ -20,7 +21,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: 'Content is required' }, { status: 400 });
     }
 
-    // Use a transaction to create the post and update user points together
     const [newPost, updatedUser] = await prisma.$transaction([
       prisma.post.create({
         data: {
@@ -47,14 +47,31 @@ export async function POST(request: Request) {
   }
 }
 
-// ... your GET handler remains the same ...
+// Handler for fetching all posts for the feed
 export async function GET() {
   try {
     const posts = await prisma.post.findMany({
       orderBy: { createdAt: 'desc' },
       include: {
-        author: { select: { name: true, image: true } },
-        _count: { select: { likes: true } },
+        author: {
+          select: {
+            id: true, // This is required for the delete button logic
+            name: true,
+            image: true,
+            email: true,
+          },
+        },
+        comments: {
+          orderBy: { createdAt: 'asc' },
+          include: {
+            author: {
+              select: { name: true, image: true, email: true },
+            },
+          },
+        },
+        _count: {
+          select: { likes: true },
+        },
       },
     });
     return NextResponse.json(posts, { status: 200 });

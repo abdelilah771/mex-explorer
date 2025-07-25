@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea'; // Assuming you added Textarea with shadcn
 
 export default function CreatePostForm() {
   const router = useRouter();
@@ -22,12 +24,13 @@ export default function CreatePostForm() {
 
       if (response.ok) {
         const data = await response.json();
-        // Update the toast to show the points awarded
         toast.success(`Post created! +${data.pointsAwarded} points awarded.`);
         setContent('');
         router.refresh();
       } else {
-        toast.error('Failed to create post.');
+        // Read the error message from the API response
+        const data = await response.json();
+        toast.error(data.message || 'Failed to create post.');
       }
     } catch (error) {
       toast.error('An unexpected error occurred.');
@@ -37,17 +40,21 @@ export default function CreatePostForm() {
   };
 
   return (
-    <form onSubmit={handleSubmit} style={{ marginBottom: '40px', padding: '20px', border: '1px solid #ddd', borderRadius: '8px' }}>
-      <textarea
+    <form onSubmit={handleSubmit} className="mb-8 rounded-xl border bg-white p-6 shadow-lg">
+      <Textarea
         value={content}
         onChange={(e) => setContent(e.target.value)}
         placeholder="Share your travel experiences..."
         required
-        style={{ width: '100%', minHeight: '80px', padding: '10px', marginBottom: '10px' }}
+        className="min-h-[100px]"
       />
-      <button type="submit" disabled={isLoading} style={{ padding: '10px 20px', backgroundColor: '#0070f3', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>
+      <Button
+        type="submit"
+        disabled={isLoading}
+        className="mt-4"
+      >
         {isLoading ? 'Posting...' : 'Create Post'}
-      </button>
+      </Button>
     </form>
   );
 }
