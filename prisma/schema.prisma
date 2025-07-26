@@ -39,6 +39,14 @@ enum RewardType {
   EXCLUSIVE_OFFER
 }
 
+// --- Add this new Enum ---
+enum VerificationStatus {
+  NOT_SUBMITTED
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
 // --- Models ---
 model User {
   id               String    @id @default(cuid())
@@ -47,11 +55,13 @@ model User {
   emailVerified    DateTime?
   password         String
   image            String?
+  coverImage       String?
   bio              String?
   dob              DateTime?
   nationality      String?
   address          String?
   identityVerified Boolean   @default(false)
+  verificationStatus VerificationStatus @default(NOT_SUBMITTED)
   documentUrl      String?
   role             UserRole  @default(USER)
 

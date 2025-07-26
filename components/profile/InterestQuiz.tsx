@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { TravelStyle, ActivityLevel } from '@prisma/client';
-import toast from 'react-hot-toast';
+import { toast } from "sonner";
 import { useRouter } from 'next/navigation';
 
 const allInterests = ["History", "Food", "Shopping", "Art", "Nature", "Nightlife", "Sports"];

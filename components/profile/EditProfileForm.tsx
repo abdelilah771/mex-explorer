@@ -3,7 +3,7 @@
 import { User } from '@prisma/client';
 import { useRouter } from 'next/navigation';
 import { useState, useRef, useEffect } from 'react';
-import toast from 'react-hot-toast';
+import { toast } from "sonner";
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -24,11 +24,11 @@ const getInitials = (name: string | null | undefined) => {
   return names[0][0] + (names.length > 1 ? names[names.length - 1][0] : '');
 };
 
-// --- IMPROVED CROP FUNCTION ---
+// --- HIGH-QUALITY CROP FUNCTION ---
 async function getCroppedImg(
   image: HTMLImageElement,
   crop: Crop,
-  fileName: string = 'avatar.png'
+  fileName: string
 ): Promise<File> {
   const canvas = document.createElement("canvas");
   const scaleX = image.naturalWidth / image.width;
@@ -44,8 +44,6 @@ async function getCroppedImg(
     throw new Error("No 2d context");
   }
 
-  ctx.clearRect(0, 0, targetWidth, targetHeight);
-
   const cropX = crop.x * scaleX;
   const cropY = crop.y * scaleY;
   const cropWidth = crop.width * scaleX;
@@ -53,18 +51,7 @@ async function getCroppedImg(
 
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';
-
-  ctx.drawImage(
-    image,
-    cropX,
-    cropY,
-    cropWidth,
-    cropHeight,
-    0,
-    0,
-    targetWidth,
-    targetHeight
-  );
+  ctx.drawImage(image, cropX, cropY, cropWidth, cropHeight, 0, 0, targetWidth, targetHeight);
 
   return new Promise((resolve, reject) => {
     canvas.toBlob((blob) => {
@@ -72,12 +59,9 @@ async function getCroppedImg(
         reject(new Error("Canvas is empty"));
         return;
       }
-      const file = new File([blob], fileName, { 
-        type: "image/png",
-        lastModified: Date.now()
-      });
+      const file = new File([blob], fileName, { type: "image/png" });
       resolve(file);
-    }, "image/png", 0.95);
+    }, "image/png", 1);
   });
 }
 
@@ -91,6 +75,7 @@ export default function EditProfileForm({ user }: EditProfileFormProps) {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [coverFile, setCoverFile] = useState<File | null>(null);
   const [documentFile, setDocumentFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(user.image);
   
@@ -98,42 +83,27 @@ export default function EditProfileForm({ user }: EditProfileFormProps) {
   const [crop, setCrop] = useState<Crop>();
   const [completedCrop, setCompletedCrop] = useState<Crop>();
   const [isCropperOpen, setIsCropperOpen] = useState(false);
-  const [isCropping, setIsCropping] = useState(false);
   const imgRef = useRef<HTMLImageElement>(null);
   const avatarInputRef = useRef<HTMLInputElement>(null);
+  const coverInputRef = useRef<HTMLInputElement>(null);
   const documentInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, files } = e.target;
     if (files && files.length > 0) {
       const file = files[0];
-      
-      if (name === 'avatar' && !file.type.startsWith('image/')) {
-        toast.error('Please select a valid image file');
-        return;
-      }
-      
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error('File size must be less than 5MB');
-        return;
-      }
-      
       if (name === 'avatar') {
         setCrop(undefined);
-        setCompletedCrop(undefined);
         const reader = new FileReader();
-        reader.addEventListener('load', () => {
-          const result = reader.result?.toString() || '';
-          setImgSrc(result);
-          setIsCropperOpen(true);
-        });
+        reader.addEventListener('load', () => setImgSrc(reader.result?.toString() || ''));
         reader.readAsDataURL(file);
+        setIsCropperOpen(true);
+      } else if (name === 'cover') {
+        setCoverFile(file);
       } else if (name === 'document') {
         setDocumentFile(file);
       }
     }
-    
-    e.target.value = '';
   };
   
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -141,54 +111,23 @@ export default function EditProfileForm({ user }: EditProfileFormProps) {
   };
 
   const handleCropAndSave = async () => {
-    if (!imgRef.current || !completedCrop?.width || !completedCrop?.height) {
-      toast.error('Please select a crop area');
-      return;
-    }
-
-    try {
-      setIsCropping(true);
-      const croppedImageFile = await getCroppedImg(
-        imgRef.current, 
-        completedCrop, 
-        `avatar-${Date.now()}.png`
-      );
-      
+    if (imgRef.current && completedCrop?.width && completedCrop?.height) {
+      const croppedImageFile = await getCroppedImg(imgRef.current, completedCrop, 'avatar.png');
       setAvatarFile(croppedImageFile);
-      
-      if (avatarPreview && avatarPreview.startsWith('blob:')) {
-        URL.revokeObjectURL(avatarPreview);
-      }
-      
-      const newPreviewUrl = URL.createObjectURL(croppedImageFile);
-      setAvatarPreview(newPreviewUrl);
-      
-      setIsCropperOpen(false);
-      toast.success('Profile picture updated');
-    } catch (error) {
-      console.error('Error cropping image:', error);
-      toast.error('Failed to crop image. Please try again.');
-    } finally {
-      setIsCropping(false);
+      setAvatarPreview(URL.createObjectURL(croppedImageFile));
     }
-  };
-
-  const handleCropperCancel = () => {
     setIsCropperOpen(false);
-    setImgSrc('');
-    setCrop(undefined);
-    setCompletedCrop(undefined);
   };
   
   const handleUpload = async (file: File, folder: string) => {
     const sigResponse = await fetch('/api/upload', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ folder }),
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ folder }),
     });
     if (!sigResponse.ok) throw new Error('Failed to get upload signature.');
     const { signature, timestamp, api_key, cloud_name } = await sigResponse.json();
-
+    
     const uploadFormData = new FormData();
     uploadFormData.append('file', file);
     uploadFormData.append('signature', signature);
@@ -197,12 +136,11 @@ export default function EditProfileForm({ user }: EditProfileFormProps) {
     uploadFormData.append('folder', folder);
 
     const uploadResponse = await fetch(`https://api.cloudinary.com/v1_1/${cloud_name}/auto/upload`, {
-        method: 'POST',
-        body: uploadFormData,
+      method: 'POST',
+      body: uploadFormData,
     });
-
+    
     if (!uploadResponse.ok) throw new Error(`File upload failed.`);
-
     const uploadedFileData = await uploadResponse.json();
     return uploadedFileData.secure_url;
   };
@@ -214,29 +152,29 @@ export default function EditProfileForm({ user }: EditProfileFormProps) {
 
     try {
       let avatarUrl = user.image;
+      let coverUrl = user.coverImage;
       let docUrl = user.documentUrl;
 
       if (avatarFile) {
-        toast.loading('Uploading profile picture...', { id: toastId });
         avatarUrl = await handleUpload(avatarFile, 'avatars');
       }
+      if (coverFile) {
+        coverUrl = await handleUpload(coverFile, 'covers');
+      }
       if (documentFile) {
-        toast.loading('Uploading document...', { id: toastId });
         docUrl = await handleUpload(documentFile, 'documents');
       }
-      
-      toast.loading('Saving profile data...', { id: toastId });
       
       const response = await fetch('/api/profile', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...formData, image: avatarUrl, documentUrl: docUrl }),
+        body: JSON.stringify({ ...formData, image: avatarUrl, coverImage: coverUrl, documentUrl: docUrl }),
       });
 
       if (!response.ok) throw new Error('Failed to update profile.');
       
       toast.success('Profile updated successfully!', { id: toastId });
-      router.push(`/profile`);
+      router.push(`/profile/${user.id}`);
       router.refresh();
 
     } catch (error: any) {
@@ -248,171 +186,79 @@ export default function EditProfileForm({ user }: EditProfileFormProps) {
 
   function onImageLoad(e: React.SyntheticEvent<HTMLImageElement>) {
     const { width, height } = e.currentTarget;
-    const initialCrop = centerCrop(
-      makeAspectCrop(
-        {
-          unit: '%',
-          width: 80,
-        },
-        1,
-        width,
-        height
-      ),
-      width,
-      height
-    );
-    setCrop(initialCrop);
-    setCompletedCrop(initialCrop);
+    const crop = centerCrop(makeAspectCrop({ unit: '%', width: 90 }, 1, width, height), width, height);
+    setCrop(crop);
   }
-
-  useEffect(() => {
-    return () => {
-      if (avatarPreview && avatarPreview.startsWith('blob:')) {
-        URL.revokeObjectURL(avatarPreview);
-      }
-    };
-  }, [avatarPreview]);
 
   return (
     <>
       <form onSubmit={handleSubmit}>
         <div className="space-y-6">
           <Card>
-            <CardHeader>
-              <CardTitle>Public Profile</CardTitle>
-              <CardDescription>This information will be displayed on your public profile.</CardDescription>
-            </CardHeader>
+            <CardHeader><CardTitle>Public Profile</CardTitle><CardDescription>This information will be displayed on your public profile.</CardDescription></CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex items-center gap-4">
-                <Avatar className="h-20 w-20">
-                  <AvatarImage src={avatarPreview || ''} />
-                  <AvatarFallback className="text-2xl">{getInitials(formData.name)}</AvatarFallback>
-                </Avatar>
-                <div className="flex flex-col gap-2">
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    onClick={() => avatarInputRef.current?.click()}
-                    disabled={isLoading}
-                  >
-                    Change Picture
-                  </Button>
-                  {avatarFile && (
-                    <p className="text-sm text-muted-foreground">
-                      New image ready to save
-                    </p>
-                  )}
+              <div className="space-y-2">
+                <Label>Profile Picture</Label>
+                <div className="flex items-center gap-4">
+                  <Avatar className="h-20 w-20"><AvatarImage src={avatarPreview || ''} /><AvatarFallback className="text-2xl">{getInitials(formData.name)}</AvatarFallback></Avatar>
+                  <Button type="button" variant="outline" onClick={() => avatarInputRef.current?.click()}>Change</Button>
+                  <Input ref={avatarInputRef} id="avatar" name="avatar" type="file" accept="image/*" onChange={handleFileChange} className="hidden"/>
                 </div>
-                <Input 
-                  ref={avatarInputRef} 
-                  id="avatar" 
-                  name="avatar" 
-                  type="file" 
-                  accept="image/jpeg,image/jpg,image/png,image/webp" 
-                  onChange={handleFileChange} 
-                  className="hidden"
-                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="cover">Cover Photo</Label>
+                <div className="flex items-center gap-4">
+                  <Button type="button" variant="outline" onClick={() => coverInputRef.current?.click()}>Upload Cover</Button>
+                  <Input ref={coverInputRef} id="cover" name="cover" type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
+                  <span className="text-xs text-muted-foreground">{coverFile ? coverFile.name : 'No new cover selected.'}</span>
+                </div>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="name">Full Name</Label>
-                <Input 
-                  id="name" 
-                  name="name" 
-                  value={formData.name} 
-                  onChange={handleChange} 
-                  disabled={isLoading}
-                />
+                <Input id="name" name="name" value={formData.name} onChange={handleChange} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="bio">Bio</Label>
-                <Textarea 
-                  id="bio" 
-                  name="bio" 
-                  value={formData.bio} 
-                  onChange={handleChange} 
-                  placeholder="Tell us a little about your travel style." 
-                  disabled={isLoading}
-                />
+                <Textarea id="bio" name="bio" value={formData.bio} onChange={handleChange} placeholder="Tell us a little about your travel style." />
               </div>
             </CardContent>
           </Card>
-
           <Card>
-            <CardHeader>
-              <CardTitle>Personal Information</CardTitle>
-              <CardDescription>This information is private and used for verification.</CardDescription>
-            </CardHeader>
+            <CardHeader><CardTitle>Personal Information</CardTitle><CardDescription>This information is private and used for verification.</CardDescription></CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="dob">Date of Birth</Label>
-                  <Input id="dob" name="dob" type="date" value={formData.dob} onChange={handleChange} />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="nationality">Nationality</Label>
-                  <Input id="nationality" name="nationality" value={formData.nationality} onChange={handleChange} />
-                </div>
+                <div className="space-y-2"><Label htmlFor="dob">Date of Birth</Label><Input id="dob" name="dob" type="date" value={formData.dob} onChange={handleChange} /></div>
+                <div className="space-y-2"><Label htmlFor="nationality">Nationality</Label><Input id="nationality" name="nationality" value={formData.nationality} onChange={handleChange} /></div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="document">Identity Document (ID/Passport)</Label>
+                <Label htmlFor="document">Identity Document</Label>
                 <div className="flex items-center gap-4">
-                  <Button type="button" variant="outline" onClick={() => documentInputRef.current?.click()}>
-                    Upload Document
-                  </Button>
+                  <Button type="button" variant="outline" onClick={() => documentInputRef.current?.click()}>Upload Document</Button>
                   <Input ref={documentInputRef} id="document" name="document" type="file" accept=".pdf,image/*" onChange={handleFileChange} className="hidden" />
-                  <span className="text-xs text-muted-foreground">
-                    {documentFile ? documentFile.name : (user.documentUrl ? 'A document is already on file.' : 'No document selected.')}
-                  </span>
+                  <span className="text-xs text-muted-foreground">{documentFile ? documentFile.name : (user.documentUrl ? 'Document on file.' : 'No document selected.')}</span>
                 </div>
               </div>
             </CardContent>
           </Card>
         </div>
-
         <div className="mt-8 flex justify-end gap-4">
-          <Button type="button" variant="ghost" onClick={() => router.back()} disabled={isLoading}>
-            Cancel
-          </Button>
-          <Button type="submit" disabled={isLoading}>
-            {isLoading ? 'Saving...' : 'Save Changes'}
-          </Button>
+          <Button type="button" variant="ghost" onClick={() => router.back()}>Cancel</Button>
+          <Button type="submit" disabled={isLoading}>{isLoading ? 'Saving...' : 'Save Changes'}</Button>
         </div>
       </form>
-
       <Dialog open={isCropperOpen} onOpenChange={setIsCropperOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Crop Your Profile Picture</DialogTitle>
-          </DialogHeader>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Crop Profile Picture</DialogTitle></DialogHeader>
           {imgSrc && (
             <div className="flex justify-center p-4">
-              <ReactCrop
-                crop={crop}
-                onChange={(_, percentCrop) => setCrop(percentCrop)}
-                onComplete={(c) => setCompletedCrop(c)}
-                circularCrop
-                aspect={1}
-                minWidth={50}
-                minHeight={50}
-                keepSelection
-              >
-                <img 
-                  ref={imgRef} 
-                  alt="Crop preview" 
-                  src={imgSrc} 
-                  onLoad={onImageLoad}
-                  style={{ maxHeight: '70vh' }}
-                />
+              <ReactCrop crop={crop} onChange={(_, percentCrop) => setCrop(percentCrop)} onComplete={(c) => setCompletedCrop(c)} circularCrop aspect={1}>
+                <img ref={imgRef} alt="Crop me" src={imgSrc} onLoad={onImageLoad} />
               </ReactCrop>
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={handleCropperCancel} disabled={isCropping}>
-              Cancel
-            </Button>
-            <Button onClick={handleCropAndSave} disabled={isCropping}>
-              {isCropping ? 'Cropping...' : 'Crop & Save'}
-            </Button>
+            <Button variant="outline" onClick={() => setIsCropperOpen(false)}>Cancel</Button>
+            <Button onClick={handleCropAndSave}>Crop & Save</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

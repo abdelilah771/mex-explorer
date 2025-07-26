@@ -44,8 +44,11 @@ export async function PATCH(request: Request) {
 
   try {
     const body = await request.json();
-    // Destructure all possible fields from the form
-    const { name, bio, image, documentUrl, dob, nationality } = body;
+    const { name, bio, image, documentUrl, coverImage, dob, nationality } = body;
+
+    // Check if a new document is being uploaded to set the status
+    const user = await prisma.user.findUnique({ where: { id: session.user.id } });
+    const isNewDocument = documentUrl && user?.documentUrl !== documentUrl;
 
     const updatedUser = await prisma.user.update({
       where: { id: session.user.id },
@@ -53,9 +56,13 @@ export async function PATCH(request: Request) {
         name,
         bio,
         image,
+        coverImage,
         documentUrl,
-        dob: dob ? new Date(dob) : null, // Convert date string to Date object
+        dob: dob ? new Date(dob) : null,
         nationality,
+        // If a new document is uploaded, set status to PENDING and reset verification
+        verificationStatus: isNewDocument ? 'PENDING' : user?.verificationStatus,
+        identityVerified: isNewDocument ? false : user?.identityVerified,
       },
     });
 
