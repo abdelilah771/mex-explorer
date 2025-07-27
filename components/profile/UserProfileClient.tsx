@@ -81,11 +81,7 @@ export default function UserProfileClient({ user, isOwnProfile, isFollowing }: U
                     <div className="lg:col-span-2 space-y-8">
                         <Card>
                             <CardHeader><CardTitle>Travel Map</CardTitle></CardHeader>
-                            <CardContent>
-                                <div className="aspect-video w-full bg-muted rounded-lg flex items-center justify-center">
-                                    <p className="text-sm text-muted-foreground">[Interactive Map Placeholder]</p>
-                                </div>
-                            </CardContent>
+                            <CardContent><div className="aspect-video w-full bg-muted rounded-lg flex items-center justify-center"><p className="text-sm text-muted-foreground">[Interactive Map Placeholder]</p></div></CardContent>
                         </Card>
                         <Card>
                             <CardHeader><CardTitle>Travel Statistics</CardTitle></CardHeader>
@@ -116,11 +112,11 @@ export default function UserProfileClient({ user, isOwnProfile, isFollowing }: U
                                     ) : user.verificationStatus === 'REJECTED' ? (
                                         <div className="flex flex-col gap-2">
                                             <p className="font-semibold text-destructive">Verification Rejected</p>
-                                            <p className="text-sm text-muted-foreground">Please upload a new document in the edit profile section.</p>
+                                            <p className="text-sm text-muted-foreground">Please upload a new document.</p>
                                         </div>
                                     ) : (
                                         <p className="text-sm text-muted-foreground">
-                                            Upload your ID or Passport to get verified in the "Edit Profile" section.
+                                            Verify your identity in the "Edit Profile" section.
                                         </p>
                                     )}
                                 </CardContent>
@@ -135,6 +131,25 @@ export default function UserProfileClient({ user, isOwnProfile, isFollowing }: U
                                 <div className="flex flex-wrap gap-2">
                                     <Badge>🏆 First Trip</Badge>
                                     <Badge>🌍 Globetrotter</Badge>
+                                </div>
+                            </CardContent>
+                        </Card>
+                        <Card>
+                            <CardHeader><CardTitle>Upcoming Trips</CardTitle></CardHeader>
+                            <CardContent>
+                                <div className="space-y-4">
+                                    {user.trips.map((trip) => (
+                                        <Link href={`/trips/${trip.id}`} key={trip.id}>
+                                            <div className="flex gap-3 p-3 rounded-lg border hover:shadow-md transition-shadow">
+                                                <div className="w-16 h-16 rounded-lg bg-muted flex items-center justify-center"><Plane /></div>
+                                                <div>
+                                                    <h4 className="font-medium">Trip to Marrakech</h4>
+                                                    <p className="text-sm text-muted-foreground">{new Date(trip.travelStartDate).toLocaleDateString()}</p>
+                                                </div>
+                                            </div>
+                                        </Link>
+                                    ))}
+                                    {user.trips.length === 0 && <p className="text-xs text-muted-foreground">No upcoming trips.</p>}
                                 </div>
                             </CardContent>
                         </Card>

@@ -4,6 +4,7 @@ const userWithRelations = Prisma.validator<Prisma.UserDefaultArgs>()({
   include: {
     posts: { orderBy: { createdAt: 'desc' } },
     trips: { orderBy: { createdAt: 'desc' } },
+    achievements: true,
     _count: {
       select: { trips: true, following: true, followedBy: true },
     },
