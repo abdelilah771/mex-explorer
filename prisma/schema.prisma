@@ -47,6 +47,12 @@ enum VerificationStatus {
   REJECTED
 }
 
+enum FriendRequestStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
 // --- Models ---
 model User {
   id               String    @id @default(cuid())
@@ -79,9 +85,13 @@ model User {
   // --- NEW: Privacy Settings ---
   isProfilePublic Boolean @default(true)
 
-  // --- NEW: Follow System ---
-  following   User[]   @relation("UserFollows")
-  followedBy  User[]   @relation("UserFollows")
+  // --- NEW: Friends System ---
+  friends    User[] @relation("Friends")
+  friendsOf  User[] @relation("Friends")
+
+  // --- ADD THESE TWO LINES TO FIX THE ERROR ---
+  sentFriendRequests     FriendRequest[] @relation("SentRequests")
+  receivedFriendRequests FriendRequest[] @relation("ReceivedRequests")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -164,4 +174,18 @@ model Achievement {
   description String
   iconUrl     String // URL to the badge icon
   users       User[] // Relation to users who have earned it
+}
+
+model FriendRequest {
+  id        String              @id @default(cuid())
+  status    FriendRequestStatus @default(PENDING)
+  createdAt DateTime            @default(now())
+  
+  fromUser   User   @relation("SentRequests", fields: [fromUserId], references: [id])
+  fromUserId String
+
+  toUser     User   @relation("ReceivedRequests", fields: [toUserId], references: [id])
+  toUserId   String
+
+  @@unique([fromUserId, toUserId]) // A user can only send one request to another
 }
