@@ -6,7 +6,8 @@ import { UserProfile } from '@/lib/types';
 
 const prisma = new PrismaClient();
 
-export default async function ProfilePage({ params }: { params: { userId: string } }) {
+export default async function ProfilePage(props: { params: Promise<{ userId: string }> }) {
+  const params = await props.params;
   const session = await getServerSession(authOptions);
   const currentUserId = session?.user?.id;
 
