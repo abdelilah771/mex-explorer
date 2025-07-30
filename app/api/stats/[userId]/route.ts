@@ -3,10 +3,8 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-export async function GET(
-  request: Request,
-  { params }: { params: { userId: string } }
-) {
+export async function GET(request: Request, props: { params: Promise<{ userId: string }> }) {
+  const params = await props.params;
   try {
     // 1. Fetch all trips for the specified user
     const trips = await prisma.trip.findMany({
