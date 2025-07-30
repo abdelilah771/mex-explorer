@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from "recharts"
-import { MapPin, Calendar, Settings, Download, Share2, Edit3, Check, X, Trophy, Plane, Camera, Globe, UserPlus } from "lucide-react"
+import { Plane } from "lucide-react"
 import Link from "next/link";
 import InterestQuiz from "../profile/InterestQuiz";
 
@@ -15,8 +15,12 @@ type FeedPost = Post & {
   author: { name: string | null; image: string | null; email: string | null; };
 };
 
+// --- THIS IS THE CORRECTED TYPE DEFINITION ---
 type UserWithCounts = User & {
-    _count: { trips: number; following: number; followedBy: number; };
+    _count: { 
+        trips: number; 
+        friends: number; // Use 'friends'
+    };
 };
 
 interface DashboardClientProps {
@@ -47,9 +51,6 @@ export default function DashboardClient({ user, trips, feedPosts }: DashboardCli
     );
   }
 
-  const nextRewardPoints = Math.ceil((user.points + 1) / 500) * 500;
-  const pointsPercentage = (user.points / nextRewardPoints) * 100;
-
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Profile Header */}
@@ -63,8 +64,7 @@ export default function DashboardClient({ user, trips, feedPosts }: DashboardCli
                     <h1 className="text-2xl font-bold">{user.name}</h1>
                     <p className="text-muted-foreground">{user.bio || 'Explorer of new horizons.'}</p>
                     <div className="flex items-center gap-6 mt-4 text-sm">
-                        <span><strong>{user._count.followedBy}</strong> followers</span>
-                        <span><strong>{user._count.following}</strong> following</span>
+                        <span><strong>{user._count.friends}</strong> friends</span>
                         <span><strong>{user._count.trips}</strong> trips</span>
                     </div>
                 </div>
@@ -82,9 +82,7 @@ export default function DashboardClient({ user, trips, feedPosts }: DashboardCli
                     <CardHeader><CardTitle>Travel Statistics</CardTitle><CardDescription>Your activity over the past 6 months</CardDescription></CardHeader>
                     <CardContent>
                         <div className="h-[300px] w-full">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={travelStats}><CartesianGrid strokeDasharray="3 3" className="opacity-30" /><XAxis dataKey="month" fontSize={12} tickLine={false} axisLine={false} /><YAxis fontSize={12} tickLine={false} axisLine={false} /><Bar dataKey="trips" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} /></BarChart>
-                            </ResponsiveContainer>
+                            <ResponsiveContainer width="100%" height="100%"><BarChart data={travelStats}><CartesianGrid strokeDasharray="3 3" className="opacity-30" /><XAxis dataKey="month" fontSize={12} tickLine={false} axisLine={false} /><YAxis fontSize={12} tickLine={false} axisLine={false} /><Bar dataKey="trips" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} /></BarChart></ResponsiveContainer>
                         </div>
                     </CardContent>
                 </Card>

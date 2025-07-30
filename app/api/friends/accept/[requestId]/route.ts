@@ -14,7 +14,6 @@ export async function POST(request: Request, { params }: { params: { requestId: 
   }
 
   try {
-    // Find the request to make sure it exists and was sent to the current user
     const friendRequest = await prisma.friendRequest.findUnique({
       where: { id: params.requestId },
     });

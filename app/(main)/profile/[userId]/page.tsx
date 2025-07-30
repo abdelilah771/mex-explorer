@@ -10,7 +10,6 @@ export default async function ProfilePage({ params }: { params: { userId: string
   const session = await getServerSession(authOptions);
   const currentUserId = session?.user?.id;
 
-  // Fetch all data for the profile in one go
   const user = await prisma.user.findUnique({
     where: { id: params.userId },
     include: {
@@ -24,11 +23,22 @@ export default async function ProfilePage({ params }: { params: { userId: string
         take: 3,
       },
       achievements: true,
+      // This section fetches a preview of the user's friends
       friends: {
-        where: { id: currentUserId } // Check if the current user is in the friends list
+        take: 9, 
+        select: {
+          id: true,
+          name: true,
+          image: true,
+          email: true,
+        }
       },
       _count: { 
-        select: { trips: true, following: true, followedBy: true } 
+        select: { 
+          trips: true, 
+          friends: true,
+          friendsOf: true,
+        } 
       },
     },
   });
@@ -37,22 +47,29 @@ export default async function ProfilePage({ params }: { params: { userId: string
     return <div className="p-8 text-center">User not found.</div>;
   }
 
-  // Determine the friendship status
+  // Determine the friendship status between the current user and the profile being viewed
   let friendshipStatus: 'none' | 'sent' | 'received' | 'friends' = 'none';
-  if (user.friends.length > 0) {
-    friendshipStatus = 'friends';
-  } else if (currentUserId && currentUserId !== user.id) {
-    const friendRequest = await prisma.friendRequest.findFirst({
-        where: {
-            OR: [
-                { fromUserId: currentUserId, toUserId: user.id },
-                { fromUserId: user.id, toUserId: currentUserId },
-            ],
-            status: 'PENDING'
-        }
+  if (currentUserId && currentUserId !== user.id) {
+    // Check if they are already friends by seeing if the current user is in the friends list
+    const areFriends = await prisma.user.findFirst({
+        where: { id: user.id, friends: { some: { id: currentUserId } } }
     });
-    if (friendRequest) {
-        friendshipStatus = friendRequest.fromUserId === currentUserId ? 'sent' : 'received';
+
+    if (areFriends) {
+        friendshipStatus = 'friends';
+    } else {
+        const friendRequest = await prisma.friendRequest.findFirst({
+            where: {
+                OR: [
+                    { fromUserId: currentUserId, toUserId: user.id },
+                    { fromUserId: user.id, toUserId: currentUserId },
+                ],
+                status: 'PENDING'
+            }
+        });
+        if (friendRequest) {
+            friendshipStatus = friendRequest.fromUserId === currentUserId ? 'sent' : 'received';
+        }
     }
   }
 

@@ -10,14 +10,17 @@ export const authOptions: AuthOptions = {
   adapter: PrismaAdapter(prisma),
   providers: [
     CredentialsProvider({
-      id: "credentials",
+      id: "credentials", // This ID must match the frontend call
       name: "credentials",
       credentials: {
         email: { label: "Email", type: "text" },
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
+        console.log("--- Authorize function started ---"); // We need to see this log
+
         if (!credentials?.email || !credentials?.password) {
+          console.log("Error: Missing credentials.");
           throw new Error("Invalid credentials");
         }
         
@@ -26,6 +29,7 @@ export const authOptions: AuthOptions = {
         });
 
         if (!user || !user.password) {
+          console.log("Error: User not found.");
           throw new Error("Invalid credentials");
         }
 
@@ -35,16 +39,16 @@ export const authOptions: AuthOptions = {
         );
 
         if (!isCorrectPassword) {
+          console.log("Error: Password comparison failed.");
           throw new Error("Invalid credentials");
         }
-
+        
+        console.log("--- Authorize successful! ---");
         return user;
       },
     }),
   ],
-  session: {
-    strategy: "jwt",
-  },
+  session: { strategy: "jwt" },
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
@@ -57,13 +61,7 @@ export const authOptions: AuthOptions = {
       if (token && session.user) {
         session.user.id = token.id as string;
         session.user.role = token.role as string;
-        
-        // Re-fetch the user from the database
-        const dbUser = await prisma.user.findUnique({
-          where: { id: token.id as string },
-        });
-
-        // Update the session with the latest name and image
+        const dbUser = await prisma.user.findUnique({ where: { id: token.id as string } });
         if (dbUser) {
           session.user.name = dbUser.name;
           session.user.image = dbUser.image;

@@ -15,7 +15,6 @@ export async function POST(request: Request, { params }: { params: { userId: str
   }
 
   try {
-    // Check if a request already exists between these two users
     const existingRequest = await prisma.friendRequest.findFirst({
       where: {
         OR: [
@@ -29,7 +28,6 @@ export async function POST(request: Request, { params }: { params: { userId: str
       return NextResponse.json({ message: 'A friend request already exists.' }, { status: 409 });
     }
 
-    // Create the new friend request
     await prisma.friendRequest.create({
       data: {
         fromUserId: currentUserId,

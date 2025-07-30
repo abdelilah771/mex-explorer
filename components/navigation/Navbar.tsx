@@ -3,6 +3,7 @@ import { authOptions } from '@/lib/auth';
 import Link from 'next/link';
 import Image from 'next/image';
 import LogoutButton from './LogoutButton';
+import FriendRequests from './FriendRequests';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 
@@ -31,10 +32,10 @@ export default async function Navbar() {
         </div>
       </div>
       
-      <div className="flex items-center justify-end gap-4">
+      <div className="flex items-center justify-end gap-2 sm:gap-4">
         {session?.user ? (
           <>
-            {/* This is the corrected link */}
+            <FriendRequests />
             <Link href={`/profile/${session.user.id}`}>
               <Avatar>
                 <AvatarImage src={session.user.image || ''} alt="Profile Picture" />

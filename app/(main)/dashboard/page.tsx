@@ -11,8 +11,12 @@ async function getDashboardData(userId: string) {
     prisma.user.findUnique({ 
       where: { id: userId },
       include: {
+        // --- THIS IS THE CORRECTED COUNT SECTION ---
         _count: {
-          select: { trips: true, following: true, followedBy: true }
+          select: { 
+            trips: true, 
+            friends: true, // Use 'friends' instead of 'following'
+          }
         }
       } 
     }),

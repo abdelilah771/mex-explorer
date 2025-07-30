@@ -3,11 +3,10 @@
 import { useState } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { toast } from "sonner";
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import Link from 'next/link';
 
 export default function LoginForm() {
   const router = useRouter();
@@ -20,7 +19,7 @@ export default function LoginForm() {
     setIsLoading(true);
 
     try {
-      const result = await signIn('credentials', {
+      const result = await signIn('credentials', { // This must be "credentials"
         redirect: false,
         email,
         password,
@@ -34,7 +33,6 @@ export default function LoginForm() {
         toast.error(result?.error || 'Invalid email or password.');
       }
     } catch (err) {
-      console.error(err);
       toast.error('An unexpected error occurred during login.');
     } finally {
       setIsLoading(false);
@@ -43,43 +41,17 @@ export default function LoginForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="space-y-2">
+      <div className="space-y-1">
         <Label htmlFor="email">Email</Label>
-        <Input
-          id="email"
-          type="email"
-          placeholder="m@example.com"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />
+        <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
       </div>
-      <div className="space-y-2">
-        <div className="flex items-center">
-          <Label htmlFor="password">Password</Label>
-          <Link href="#" className="ml-auto inline-block text-sm underline">
-            Forgot your password?
-          </Link>
-        </div>
-        <Input
-          id="password"
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
+      <div className="space-y-1">
+        <Label htmlFor="password">Password</Label>
+        <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
       </div>
-      
       <Button type="submit" disabled={isLoading} className="w-full">
         {isLoading ? 'Logging in...' : 'Login'}
       </Button>
-      
-      <div className="mt-4 text-center text-sm">
-        Don&apos;t have an account?{" "}
-        <Link href="/register" className="underline">
-          Sign up
-        </Link>
-      </div>
     </form>
   );
 }
