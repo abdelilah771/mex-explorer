@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from "sonner";
-import Image from 'next/image';
+import Image from "next/legacy/image";
 import { Session } from 'next-auth';
 import {
   AlertDialog,

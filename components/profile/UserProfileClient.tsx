@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { User, Trip, Post, Achievement } from '@prisma/client';
-import Image from "next/image";
+import Image from "next/legacy/image";
 import Link from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
