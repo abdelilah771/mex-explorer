@@ -6,7 +6,8 @@ import { UserProfile } from '@/lib/types';
 
 const prisma = new PrismaClient();
 
-export default async function ProfilePage({ params }: { params: { userId: string } }) {
+export default async function ProfilePage(props: { params: Promise<{ userId: string }> }) {
+  const params = await props.params;
   const session = await getServerSession(authOptions);
   const currentUserId = session?.user?.id;
 
@@ -66,7 +67,7 @@ export default async function ProfilePage({ params }: { params: { userId: string
     // 3. Find the intersection of the two sets
     mutualFriendsCount = [...currentUserFriendIds].filter(id => profileUserFriendIds.has(id)).length;
   }
-  
+
   // Determine the friendship status
   let friendshipStatus: 'none' | 'sent' | 'received' | 'friends' = 'none';
   if (currentUserId && currentUserId !== user.id) {
