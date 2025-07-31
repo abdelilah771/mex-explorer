@@ -7,7 +7,24 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 const prisma = new PrismaClient();
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY!);
 
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+// Helper function to call Google Geocoding API
+async function getCoordinates(placeName: string) {
+  try {
+    const response = await fetch(
+      `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(
+        placeName + ', Marrakech, Morocco'
+      )}&key=${process.env.NEXT_PUBLIC_Maps_API_KEY}`
+    );
+    const data = await response.json();
+    if (data.status === 'OK') {
+      return data.results[0].geometry.location; // Returns { lat, lng }
+    }
+    return null;
+  } catch (error) {
+    console.error("Geocoding error:", error);
+    return null;
+  }
+}
 
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
@@ -17,10 +34,6 @@ export async function POST(request: Request) {
 
   try {
     const { tripId } = await request.json();
-    if (!tripId) {
-      return NextResponse.json({ message: 'Trip ID is required' }, { status: 400 });
-    }
-
     const user = await prisma.user.findUnique({ where: { id: session.user.id } });
     const trip = await prisma.trip.findUnique({ where: { id: tripId } });
 
@@ -28,85 +41,53 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: 'User or Trip not found' }, { status: 404 });
     }
 
+    // --- UPDATED PROMPT ---
     const prompt = `
-      You are an expert tour guide for Marrakech, Morocco.
-      A traveler has given you their preferences. Please create 4 distinct, personalized daily itineraries.
-      
-      Traveler's Profile:
-      - Interests: ${user.interests?.join(', ')}
-      - Travel Style: ${user.travelStyle}
-      - Activity Level: ${user.activityLevel}
+      You are an expert tour guide for Marrakech. Create 4 distinct itineraries.
+      For each activity (morning, afternoon, evening), provide a "description" and a specific "locationName" suitable for geocoding (e.g., "Jardin Majorelle", "Nomad Restaurant").
 
-      Trip Details:
-      - Start Date: ${trip.travelStartDate.toDateString()}
-      - End Date: ${trip.travelEndDate.toDateString()}
-      - Estimated Budget: $${trip.budget}
-      - Desired Souvenir: ${trip.souvenirType || 'None specified'}
-
-      Your Task:
-      Generate 4 complete, distinct, and highly personalized trip proposals. For each proposal, provide a full day-by-day itinerary.
-      
-      IMPORTANT: Consider the specific dates of travel (${trip.travelStartDate.toDateString()} to ${trip.travelEndDate.toDateString()}). If there are any local holidays, festivals, or special seasonal events in Marrakech during this period, please include them in your suggestions.
-      
-      Respond with ONLY a valid JSON object. The JSON object should have a single key "proposals" which is an array of 4 proposal objects.
-      Each proposal object must have the following structure:
+      Respond with ONLY a valid JSON object with a key "proposals".
+      Each proposal object must have an "itinerary" array. Each itinerary object must have this structure:
       {
-        "title": "A descriptive title for the proposal (e.g., 'The Adventurous Foodie's Journey')",
-        "summary": "A brief one-paragraph summary of this trip proposal.",
-        "itinerary": [
-          {
-            "day": 1,
-            "theme": "A theme for the day (e.g., 'Exploring the Medina')",
-            "morning": "Description of the morning activity. Include specific names.",
-            "afternoon": "Description of the afternoon activity. Include specific names.",
-            "evening": "Description of the evening activity, including a specific restaurant name and why it was chosen."
-          }
-        ]
+        "day": 1,
+        "theme": "A theme for the day",
+        "morning": { "description": "...", "locationName": "..." },
+        "afternoon": { "description": "...", "locationName": "..." },
+        "evening": { "description": "...", "locationName": "..." }
       }
     `;
 
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-    
-    let aiResponse;
-    // Retry Logic for API calls
-    let attempts = 0;
-    const maxAttempts = 3;
-    while (attempts < maxAttempts) {
-      try {
-        const result = await model.generateContent(prompt);
-        const response = await result.response;
-        const text = response.text();
-        const cleanedJson = text.replace(/^```json\s*|```\s*$/g, '');
-        aiResponse = JSON.parse(cleanedJson);
-        break; // Exit loop on success
-      } catch (error: any) {
-        if (error.message.includes('503')) {
-          attempts++;
-          if (attempts >= maxAttempts) throw error;
-          console.log(`Model overloaded. Retrying in ${attempts * 2} seconds...`);
-          await sleep(attempts * 2000);
-        } else {
-          throw error;
-        }
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
+    const cleanedJson = text.replace(/^```json\s*|```\s*$/g, '');
+    const suggestions = JSON.parse(cleanedJson);
+
+    // --- NEW: Enrich with Coordinates ---
+    for (const proposal of suggestions.proposals) {
+      for (const day of proposal.itinerary) {
+        day.morning.coords = await getCoordinates(day.morning.locationName);
+        day.afternoon.coords = await getCoordinates(day.afternoon.locationName);
+        day.evening.coords = await getCoordinates(day.evening.locationName);
       }
     }
-    if (!aiResponse) throw new Error('Failed to get a response from the AI model.');
 
-    // --- NEW: Save the suggestions to the database ---
+    // Save the enriched suggestions to the database
     await prisma.$transaction(
-      aiResponse.proposals.map((proposal: any) =>
+      suggestions.proposals.map((p: any) =>
         prisma.suggestion.create({
           data: {
-            title: proposal.title,
-            summary: proposal.summary,
-            itinerary: proposal.itinerary, // Prisma handles the JSON object
-            tripId: trip.id, // Link to the trip
+            title: p.title,
+            summary: p.summary,
+            itinerary: p.itinerary, // Now includes coordinates
+            tripId: trip.id,
           },
         })
       )
     );
 
-    return NextResponse.json(aiResponse, { status: 200 });
+    return NextResponse.json(suggestions, { status: 200 });
 
   } catch (error) {
     console.error('SUGGESTION_GENERATION_ERROR', error);

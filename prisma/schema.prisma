@@ -53,6 +53,11 @@ enum FriendRequestStatus {
   REJECTED
 }
 
+enum TripRole {
+  OWNER
+  MEMBER
+}
+
 // --- Models ---
 model User {
   id               String    @id @default(cuid())
@@ -97,24 +102,38 @@ model User {
   updatedAt DateTime @updatedAt
   
   // Relations
-  trips    Trip[]
+  tripMemberships TripMembership[]
   posts    Post[]
   likes    Like[]
   comments Comment[]
 }
 
 model Trip {
-  id              String     @id @default(cuid())
+  id              String           @id @default(cuid())
+  name            String           @default("Untitled Trip")
+  destination     String           @default("Unknown Destination")
   travelStartDate DateTime
   travelEndDate   DateTime
-  budget          Float
+  budget          Float?
   souvenirType    String?
-  status          TripStatus @default(PLANNING)
-  createdAt       DateTime   @default(now())
-  updatedAt       DateTime   @updatedAt
-  userId          String
-  user            User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status          TripStatus       @default(PLANNING)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
   suggestions     Suggestion[]
+  members         TripMembership[]
+}
+
+model TripMembership {
+  id        String   @id @default(cuid())
+  tripId    String
+  trip      Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      TripRole @default(MEMBER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tripId, userId])
 }
 
 model Suggestion {
