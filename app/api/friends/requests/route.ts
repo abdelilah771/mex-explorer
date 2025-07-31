@@ -10,7 +10,7 @@ export async function GET(request: Request) {
   const currentUserId = session?.user?.id;
 
   if (!currentUserId) {
-    return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
+    return NextResponse.json({ requests: [], count: 0 }); // Return empty if not logged in
   }
 
   try {
@@ -29,10 +29,19 @@ export async function GET(request: Request) {
           },
         },
       },
+      orderBy: {
+        createdAt: 'desc'
+      }
     });
 
-    return NextResponse.json(friendRequests);
+    // Return both the list and the count in the response
+    return NextResponse.json({
+        requests: friendRequests,
+        count: friendRequests.length
+    });
+
   } catch (error) {
+    console.error("Failed to fetch friend requests:", error);
     return NextResponse.json({ message: 'Something went wrong' }, { status: 500 });
   }
 }

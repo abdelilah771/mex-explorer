@@ -11,23 +11,22 @@ async function getDashboardData(userId: string) {
     prisma.user.findUnique({ 
       where: { id: userId },
       include: {
-        // --- THIS IS THE CORRECTED COUNT SECTION ---
         _count: {
-          select: { 
-            trips: true, 
-            friends: true, // Use 'friends' instead of 'following'
-          }
+          select: { friends: true, trips: true }
         }
       } 
     }),
     prisma.trip.findMany({
-      where: { userId: userId },
-      orderBy: { createdAt: 'desc' },
-      take: 3,
+      where: { 
+        userId: userId,
+        travelStartDate: { gte: new Date() } // Only upcoming trips
+      },
+      orderBy: { travelStartDate: 'asc' },
+      take: 1, // Get only the next upcoming trip
     }),
     prisma.post.findMany({
       orderBy: { createdAt: 'desc' },
-      take: 4, 
+      take: 3, // Get the 3 most recent posts from the feed
       include: {
         author: {
           select: { name: true, image: true, email: true },
@@ -36,7 +35,9 @@ async function getDashboardData(userId: string) {
     }),
   ]);
 
-  return { user, trips, feedPosts };
+  const upcomingTrip = trips[0] || null;
+
+  return { user, upcomingTrip, feedPosts };
 }
 
 export default async function DashboardPage() {
@@ -49,7 +50,7 @@ export default async function DashboardPage() {
   const data = await getDashboardData(session.user.id);
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-black">
+    <div className="min-h-screen bg-muted/40 p-4 sm:p-6 lg:p-8">
         <DashboardClient {...data} />
     </div>
   );

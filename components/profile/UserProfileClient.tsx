@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { User, Trip, Post, Achievement } from '@prisma/client';
-import Image from "next/legacy/image";
+import Image from "next/image";
 import Link from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
@@ -15,15 +15,16 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from "recharts"
 import { Download, Share2, Trophy, Plane, CheckCircle2 } from "lucide-react"
 import EditProfileSheet from "./EditProfileSheet";
-import FollowButton from "./FollowButton";
 import FriendButton from "./FriendButton";
 import UserListDialog from "./UserListDialog";
 import { UserProfile } from "@/lib/types";
 
+// The props interface now correctly includes mutualFriendsCount
 interface UserProfileClientProps {
   user: UserProfile;
   isOwnProfile: boolean;
   friendshipStatus: 'none' | 'sent' | 'received' | 'friends';
+  mutualFriendsCount: number;
 }
 
 const getInitials = (name: string | null | undefined) => {
@@ -37,7 +38,8 @@ interface ChartData {
   trips: number;
 }
 
-export default function UserProfileClient({ user, isOwnProfile, friendshipStatus }: UserProfileClientProps) {
+// The function signature now correctly accepts mutualFriendsCount
+export default function UserProfileClient({ user, isOwnProfile, friendshipStatus, mutualFriendsCount }: UserProfileClientProps) {
     const [travelStats, setTravelStats] = useState<ChartData[]>([]);
     const [isLoadingStats, setIsLoadingStats] = useState(true);
 
@@ -54,6 +56,7 @@ export default function UserProfileClient({ user, isOwnProfile, friendshipStatus
                 setIsLoadingStats(false);
             }
         };
+
         fetchStats();
     }, [user.id]);
 
@@ -87,7 +90,15 @@ export default function UserProfileClient({ user, isOwnProfile, friendshipStatus
                                 <h1 className="text-2xl font-bold">{user.name}</h1>
                                 <p className="text-muted-foreground mb-3">{user.bio || 'Explorer of new horizons.'}</p>
                                 <div className="flex justify-center sm:justify-start items-center gap-6 text-sm">
-                                    <span><strong>{user._count.friends}</strong> friends</span>
+                                    <UserListDialog
+                                        title="Friends"
+                                        fetchUrl={`/api/friends/list/${user.id}`} // We will create this API next
+                                        triggerText={<span className="cursor-pointer hover:underline"><strong>{user._count.friends}</strong> friends</span>}
+                                    />
+                                    {/* Display mutual friends count */}
+                                    {!isOwnProfile && mutualFriendsCount > 0 && (
+                                        <span className="text-muted-foreground"><strong>{mutualFriendsCount}</strong> mutual friends</span>
+                                    )}
                                     <span><strong>{user._count.trips}</strong> trips</span>
                                 </div>
                             </div>
@@ -103,9 +114,7 @@ export default function UserProfileClient({ user, isOwnProfile, friendshipStatus
                     {/* Left Column */}
                     <div className="lg:col-span-2 space-y-8">
                         <Card>
-                            <CardHeader>
-                                <CardTitle>Friends ({user._count.friends})</CardTitle>
-                            </CardHeader>
+                            <CardHeader><CardTitle>Friends</CardTitle></CardHeader>
                             <CardContent>
                                 <div className="grid grid-cols-3 sm:grid-cols-5 gap-4">
                                     {user.friends.map(friend => (
@@ -119,10 +128,6 @@ export default function UserProfileClient({ user, isOwnProfile, friendshipStatus
                                     ))}
                                 </div>
                             </CardContent>
-                        </Card>
-                        <Card>
-                            <CardHeader><CardTitle>Travel Map</CardTitle></CardHeader>
-                            <CardContent><div className="aspect-video w-full bg-muted rounded-lg flex items-center justify-center"><p className="text-sm text-muted-foreground">[Interactive Map Placeholder]</p></div></CardContent>
                         </Card>
                         <Card>
                             <CardHeader><CardTitle>Travel Statistics</CardTitle></CardHeader>

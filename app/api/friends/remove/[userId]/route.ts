@@ -5,8 +5,7 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-export async function POST(request: Request, props: { params: Promise<{ userId: string }> }) {
-  const params = await props.params;
+export async function POST(request: Request, { params }: { params: { userId: string } }) {
   const session = await getServerSession(authOptions);
   const currentUserId = session?.user?.id;
   const targetUserId = params.userId;
@@ -16,17 +15,34 @@ export async function POST(request: Request, props: { params: Promise<{ userId: 
   }
 
   try {
-    // Use a transaction to remove the friendship from both sides
-    await prisma.$transaction([
-      prisma.user.update({
+    // Use a transaction to perform all actions together
+    await prisma.$transaction(async (tx) => {
+      // 1. Remove the friendship from both users
+      await tx.user.update({
         where: { id: currentUserId },
         data: { friends: { disconnect: { id: targetUserId } } },
-      }),
-      prisma.user.update({
+      });
+      await tx.user.update({
         where: { id: targetUserId },
         data: { friends: { disconnect: { id: currentUserId } } },
-      }),
-    ]);
+      });
+
+      // 2. Find and delete the original friend request
+      const friendRequest = await tx.friendRequest.findFirst({
+        where: {
+          OR: [
+            { fromUserId: currentUserId, toUserId: targetUserId },
+            { fromUserId: targetUserId, toUserId: currentUserId },
+          ],
+        },
+      });
+
+      if (friendRequest) {
+        await tx.friendRequest.delete({
+          where: { id: friendRequest.id },
+        });
+      }
+    });
 
     return NextResponse.json({ message: 'Friend removed' });
   } catch (error) {

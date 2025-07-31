@@ -34,6 +34,7 @@ const getInitials = (name: string | null | undefined) => {
 export default function FriendRequests() {
   const router = useRouter();
   const [requests, setRequests] = useState<FriendRequest[]>([]);
+  const [count, setCount] = useState(0); // State for the notification count
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -41,7 +42,8 @@ export default function FriendRequests() {
       try {
         const response = await fetch('/api/friends/requests');
         const data = await response.json();
-        setRequests(data);
+        setRequests(data.requests || []);
+        setCount(data.count || 0); // Set the count from the API
       } catch (error) {
         console.error('Failed to fetch friend requests:', error);
       } finally {
@@ -59,7 +61,9 @@ export default function FriendRequests() {
 
       if (response.ok) {
         toast.success(`Request ${action}ed!`);
+        // Optimistically update the UI
         setRequests(requests.filter(req => req.id !== requestId));
+        setCount(prev => prev - 1);
         router.refresh();
       } else {
         toast.error('Failed to respond to request.');
@@ -74,11 +78,10 @@ export default function FriendRequests() {
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="icon" className="relative">
           <Bell className="h-5 w-5" />
-          {requests.length > 0 && (
-            <span className="absolute top-0 right-0 flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-sky-500"></span>
-            </span>
+          {count > 0 && (
+            <div className="absolute top-1 right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white">
+              {count}
+            </div>
           )}
         </Button>
       </DropdownMenuTrigger>

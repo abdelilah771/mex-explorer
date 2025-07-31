@@ -1,17 +1,11 @@
 'use client';
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import FollowButton from "./FollowButton";
 import { User } from "@prisma/client";
-import { useSession } from "next-auth/react";
-
-// Define a type for the user data we expect
-type UserWithFollowStatus = User & {
-    isFollowedByCurrentUser?: boolean;
-};
+import Link from "next/link";
 
 interface UserCardProps {
-    user: UserWithFollowStatus;
+    user: User;
 }
 
 const getInitials = (name: string | null | undefined) => {
@@ -21,24 +15,21 @@ const getInitials = (name: string | null | undefined) => {
 };
 
 export default function UserCard({ user }: UserCardProps) {
-    const { data: session } = useSession();
-    const isCurrentUser = session?.user?.id === user.id;
-
     return (
-        <div className="flex items-center justify-between p-2 rounded-lg hover:bg-muted">
-            <div className="flex items-center gap-4">
-                <Avatar>
-                    <AvatarImage src={user.image || ''} />
-                    <AvatarFallback>{getInitials(user.name)}</AvatarFallback>
-                </Avatar>
-                <div>
-                    <p className="font-semibold">{user.name}</p>
-                    <p className="text-sm text-muted-foreground">{user.email}</p>
+        <Link href={`/profile/${user.id}`}>
+            <div className="flex items-center justify-between p-2 rounded-lg hover:bg-muted cursor-pointer">
+                <div className="flex items-center gap-4">
+                    <Avatar>
+                        <AvatarImage src={user.image || ''} />
+                        <AvatarFallback>{getInitials(user.name)}</AvatarFallback>
+                    </Avatar>
+                    <div>
+                        <p className="font-semibold">{user.name}</p>
+                        <p className="text-sm text-muted-foreground">{user.email}</p>
+                    </div>
                 </div>
+                {/* We remove the FollowButton from here to keep the card as a single, clean link */}
             </div>
-            {!isCurrentUser && (
-                 <FollowButton targetUserId={user.id} isFollowing={user.isFollowedByCurrentUser || false} />
-            )}
-        </div>
+        </Link>
     );
 }

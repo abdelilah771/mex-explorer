@@ -1,9 +1,9 @@
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import Link from 'next/link';
-import Image from "next/legacy/image";
 import LogoutButton from './LogoutButton';
 import FriendRequests from './FriendRequests';
+import FindFriendsDialog from '@/components/friends/FindFriendsDialog'; // 1. Import the new dialog
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 
@@ -35,13 +35,18 @@ export default async function Navbar() {
       <div className="flex items-center justify-end gap-2 sm:gap-4">
         {session?.user ? (
           <>
+            {/* 2. Replace the old Link with the new Dialog component */}
+            <FindFriendsDialog />
+            
             <FriendRequests />
+            
             <Link href={`/profile/${session.user.id}`}>
               <Avatar>
                 <AvatarImage src={session.user.image || ''} alt="Profile Picture" />
                 <AvatarFallback>{getInitials(session.user.name)}</AvatarFallback>
               </Avatar>
             </Link>
+
             <LogoutButton />
           </>
         ) : (
