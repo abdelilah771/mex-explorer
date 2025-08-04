@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { User, Trip, Post, Achievement } from '@prisma/client';
+import { Trip } from '@prisma/client';
 import Image from "next/image";
 import Link from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -19,7 +19,6 @@ import FriendButton from "./FriendButton";
 import UserListDialog from "./UserListDialog";
 import { UserProfile } from "@/lib/types";
 
-// The props interface now correctly includes mutualFriendsCount
 interface UserProfileClientProps {
   user: UserProfile;
   isOwnProfile: boolean;
@@ -38,10 +37,12 @@ interface ChartData {
   trips: number;
 }
 
-// The function signature now correctly accepts mutualFriendsCount
 export default function UserProfileClient({ user, isOwnProfile, friendshipStatus, mutualFriendsCount }: UserProfileClientProps) {
     const [travelStats, setTravelStats] = useState<ChartData[]>([]);
     const [isLoadingStats, setIsLoadingStats] = useState(true);
+
+    // Extract trips from the user object for easier use
+    const trips = user.tripMemberships.map(m => m.trip);
 
     useEffect(() => {
         const fetchStats = async () => {
@@ -49,14 +50,21 @@ export default function UserProfileClient({ user, isOwnProfile, friendshipStatus
             try {
                 const response = await fetch(`/api/stats/${user.id}`);
                 const data = await response.json();
-                setTravelStats(data);
+
+                // Safely handle API response to prevent chart errors
+                if (Array.isArray(data)) {
+                    setTravelStats(data);
+                } else {
+                    console.error("Failed to fetch valid chart data:", data.message);
+                    setTravelStats([]);
+                }
             } catch (error) {
                 console.error("Failed to fetch travel stats:", error);
+                setTravelStats([]);
             } finally {
                 setIsLoadingStats(false);
             }
         };
-
         fetchStats();
     }, [user.id]);
 
@@ -67,7 +75,7 @@ export default function UserProfileClient({ user, isOwnProfile, friendshipStatus
         <div className="min-h-screen bg-background text-foreground">
             {/* Cover Image */}
             <div className="relative h-48 bg-muted rounded-b-lg overflow-hidden">
-                {user.coverImage && <Image src={user.coverImage} alt="Cover" layout="fill" objectFit="cover" />}
+                {user.coverImage && <Image src={user.coverImage} alt="Cover" fill className="object-cover" priority />}
                 <div className="absolute top-4 right-4 flex gap-2">
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild><Button variant="secondary" size="sm"><Download className="w-4 h-4 mr-2" /> Export</Button></DropdownMenuTrigger>
@@ -92,14 +100,11 @@ export default function UserProfileClient({ user, isOwnProfile, friendshipStatus
                                 <div className="flex justify-center sm:justify-start items-center gap-6 text-sm">
                                     <UserListDialog
                                         title="Friends"
-                                        fetchUrl={`/api/friends/list/${user.id}`} // We will create this API next
+                                        fetchUrl={`/api/friends/list/${user.id}`}
                                         triggerText={<span className="cursor-pointer hover:underline"><strong>{user._count.friends}</strong> friends</span>}
                                     />
-                                    {/* Display mutual friends count */}
-                                    {!isOwnProfile && mutualFriendsCount > 0 && (
-                                        <span className="text-muted-foreground"><strong>{mutualFriendsCount}</strong> mutual friends</span>
-                                    )}
-                                    <span><strong>{user._count.trips}</strong> trips</span>
+                                    {!isOwnProfile && mutualFriendsCount > 0 && (<span className="text-muted-foreground"><strong>{mutualFriendsCount}</strong> mutual friends</span>)}
+                                    <span><strong>{user._count.tripMemberships}</strong> trips</span>
                                 </div>
                             </div>
                             <div className="flex flex-col gap-2">
@@ -114,20 +119,8 @@ export default function UserProfileClient({ user, isOwnProfile, friendshipStatus
                     {/* Left Column */}
                     <div className="lg:col-span-2 space-y-8">
                         <Card>
-                            <CardHeader><CardTitle>Friends</CardTitle></CardHeader>
-                            <CardContent>
-                                <div className="grid grid-cols-3 sm:grid-cols-5 gap-4">
-                                    {user.friends.map(friend => (
-                                        <Link href={`/profile/${friend.id}`} key={friend.id} className="text-center">
-                                            <Avatar className="w-16 h-16 mx-auto">
-                                                <AvatarImage src={friend.image || ''} />
-                                                <AvatarFallback>{getInitials(friend.name)}</AvatarFallback>
-                                            </Avatar>
-                                            <p className="text-xs font-medium mt-2 truncate">{friend.name}</p>
-                                        </Link>
-                                    ))}
-                                </div>
-                            </CardContent>
+                            <CardHeader><CardTitle>Travel Map</CardTitle></CardHeader>
+                            <CardContent><div className="aspect-video w-full bg-muted rounded-lg flex items-center justify-center"><p className="text-sm text-muted-foreground">[Interactive Map Placeholder]</p></div></CardContent>
                         </Card>
                         <Card>
                             <CardHeader><CardTitle>Travel Statistics</CardTitle></CardHeader>
@@ -174,18 +167,18 @@ export default function UserProfileClient({ user, isOwnProfile, friendshipStatus
                             <CardHeader><CardTitle>Upcoming Trips</CardTitle></CardHeader>
                             <CardContent>
                                 <div className="space-y-4">
-                                    {user.trips.map((trip) => (
+                                    {trips.map((trip: Trip) => (
                                         <Link href={`/trips/${trip.id}`} key={trip.id}>
                                             <div className="flex gap-3 p-3 rounded-lg border hover:shadow-md transition-shadow">
                                                 <div className="w-16 h-16 rounded-lg bg-muted flex items-center justify-center"><Plane /></div>
                                                 <div>
-                                                    <h4 className="font-medium">Trip to Marrakech</h4>
+                                                    <h4 className="font-medium">{trip.name}</h4>
                                                     <p className="text-sm text-muted-foreground">{new Date(trip.travelStartDate).toLocaleDateString()}</p>
                                                 </div>
                                             </div>
                                         </Link>
                                     ))}
-                                    {user.trips.length === 0 && <p className="text-xs text-muted-foreground">No upcoming trips.</p>}
+                                    {trips.length === 0 && <p className="text-xs text-muted-foreground">No upcoming trips.</p>}
                                 </div>
                             </CardContent>
                         </Card>

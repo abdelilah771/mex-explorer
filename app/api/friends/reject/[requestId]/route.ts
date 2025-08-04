@@ -1,12 +1,9 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
-import { PrismaClient } from '@prisma/client';
+import prisma from '@/lib/prisma';
 
-const prisma = new PrismaClient();
-
-export async function POST(request: Request, props: { params: Promise<{ requestId: string }> }) {
-  const params = await props.params;
+export async function POST(request: Request, { params }: { params: { requestId: string } }) {
   const session = await getServerSession(authOptions);
   const currentUserId = session?.user?.id;
 
@@ -28,8 +25,9 @@ export async function POST(request: Request, props: { params: Promise<{ requestI
       where: { id: params.requestId },
     });
 
-    return NextResponse.json({ message: 'Friend request deleted' });
+    return NextResponse.json({ message: 'Friend request declined' });
   } catch (error) {
+    console.error("REJECT_REQUEST_ERROR", error);
     return NextResponse.json({ message: 'Something went wrong' }, { status: 500 });
   }
 }

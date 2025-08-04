@@ -1,9 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import prisma from '@/lib/prisma';
 
 export async function POST(request: Request, { params }: { params: { userId: string } }) {
   const session = await getServerSession(authOptions);
@@ -44,8 +42,9 @@ export async function POST(request: Request, { params }: { params: { userId: str
       }
     });
 
-    return NextResponse.json({ message: 'Friend removed' });
+    return NextResponse.json({ message: 'Friend removed successfully' });
   } catch (error) {
+    console.error("UNFRIEND_ERROR", error);
     return NextResponse.json({ message: 'Something went wrong' }, { status: 500 });
   }
 }

@@ -58,6 +58,13 @@ enum TripRole {
   MEMBER
 }
 
+// --- NEW: Trip Invitation Status Enum ---
+enum TripInvitationStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
 // --- Models ---
 model User {
   id               String    @id @default(cuid())
@@ -130,6 +137,7 @@ model TripMembership {
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   role      TripRole @default(MEMBER)
+  status    TripInvitationStatus @default(PENDING)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

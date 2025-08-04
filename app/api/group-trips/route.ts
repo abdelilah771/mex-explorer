@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
-import { PrismaClient, TripRole } from '@prisma/client';
 import prisma from '@/lib/prisma';
+import { TripRole } from '@prisma/client';
 
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
@@ -13,8 +13,15 @@ export async function POST(request: Request) {
   }
 
   try {
-    // Add budget to the destructured body
-    const { name, destination, travelStartDate, travelEndDate, budget } = await request.json();
+    const body = await request.json();
+    const {
+      name,
+      destination,
+      travelStartDate,
+      travelEndDate,
+      budget,
+      friendIds,
+    } = body;
 
     if (!name || !destination || !travelStartDate || !travelEndDate) {
       return NextResponse.json({ message: 'Missing required fields' }, { status: 400 });
@@ -26,19 +33,37 @@ export async function POST(request: Request) {
         destination,
         travelStartDate: new Date(travelStartDate),
         travelEndDate: new Date(travelEndDate),
-        budget: budget ? parseFloat(budget) : null, // Save the budget
-        members: {
-          create: {
-            userId: currentUserId,
-            role: TripRole.OWNER,
-          },
-        },
+        budget: budget ? parseFloat(budget) : null,
       },
+    });
+
+    // --- THIS IS THE FIX ---
+    // We explicitly define the type for the array here
+    const membersToCreate: { tripId: string; userId: string; role: TripRole }[] = [
+      {
+        tripId: newTrip.id,
+        userId: currentUserId,
+        role: TripRole.OWNER,
+      },
+    ];
+
+    if (friendIds && Array.isArray(friendIds)) {
+      friendIds.forEach((friendId: string) => {
+        membersToCreate.push({
+          tripId: newTrip.id,
+          userId: friendId,
+          role: TripRole.MEMBER,
+        });
+      });
+    }
+
+    await prisma.tripMembership.createMany({
+      data: membersToCreate,
     });
 
     return NextResponse.json(newTrip, { status: 201 });
   } catch (error) {
-    console.error('TRIP_CREATION_ERROR', error);
+    console.error('GROUP_TRIP_CREATION_ERROR', error);
     return NextResponse.json({ message: 'Something went wrong' }, { status: 500 });
   }
 }
