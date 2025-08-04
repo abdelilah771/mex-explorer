@@ -5,12 +5,13 @@ import prisma from '@/lib/prisma';
 import TripDetailClient from '@/components/trip-planning/TripDetailClient';
 
 interface PageProps {
-  params: {
+  params: Promise<{
     tripId: string;
-  };
+  }>;
 }
 
-export default async function TripDetailPage({ params }: PageProps) {
+export default async function TripDetailPage(props: PageProps) {
+  const params = await props.params;
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     redirect('/login');
