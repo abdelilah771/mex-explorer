@@ -5,10 +5,8 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-export async function POST(
-  request: Request,
-  { params }: { params: { rewardId: string } }
-) {
+export async function POST(request: Request, props: { params: Promise<{ rewardId: string }> }) {
+  const params = await props.params;
   const session = await getServerSession(authOptions);
   const userId = session?.user?.id;
   const rewardId = params.rewardId;

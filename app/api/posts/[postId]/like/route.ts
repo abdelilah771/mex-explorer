@@ -6,12 +6,13 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 interface Params {
-  params: {
+  params: Promise<{
     postId: string;
-  };
+  }>;
 }
 
-export async function POST(request: Request, { params }: Params) {
+export async function POST(request: Request, props: Params) {
+  const params = await props.params;
   const session = await getServerSession(authOptions);
   const userId = session?.user?.id;
   const postId = params.postId;

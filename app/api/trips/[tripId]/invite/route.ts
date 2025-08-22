@@ -4,10 +4,8 @@ import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { TripRole } from '@prisma/client';
 
-export async function POST(
-  request: Request,
-  { params }: { params: { tripId: string } }
-) {
+export async function POST(request: Request, props: { params: Promise<{ tripId: string }> }) {
+  const params = await props.params;
   const session = await getServerSession(authOptions);
   const currentUserId = session?.user?.id;
 

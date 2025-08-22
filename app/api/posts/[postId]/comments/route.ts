@@ -6,10 +6,11 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 interface Params {
-  params: { postId: string };
+  params: Promise<{ postId: string }>;
 }
 
-export async function POST(request: Request, { params }: Params) {
+export async function POST(request: Request, props: Params) {
+  const params = await props.params;
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });

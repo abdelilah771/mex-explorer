@@ -6,10 +6,11 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 interface Params {
-  params: { postId: string };
+  params: Promise<{ postId: string }>;
 }
 
-export async function DELETE(request: Request, { params }: Params) {
+export async function DELETE(request: Request, props: Params) {
+  const params = await props.params;
   const session = await getServerSession(authOptions);
   const userId = session?.user?.id;
   const postId = params.postId;

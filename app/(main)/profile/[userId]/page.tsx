@@ -4,7 +4,8 @@ import prisma from '@/lib/prisma';
 import UserProfileClient from '@/components/profile/UserProfileClient';
 import { UserProfile } from '@/lib/types';
 
-export default async function ProfilePage({ params }: { params: { userId: string } }) {
+export default async function ProfilePage(props: { params: Promise<{ userId: string }> }) {
+  const params = await props.params;
   const session = await getServerSession(authOptions);
   const currentUserId = session?.user?.id;
 
@@ -42,7 +43,7 @@ export default async function ProfilePage({ params }: { params: { userId: string
   if (!user) {
     return <div className="p-8 text-center">User not found.</div>;
   }
-  
+
   // Transform the data for the client component
   const trips = user.tripMemberships.map(membership => membership.trip);
   const userForClient = {
@@ -77,7 +78,7 @@ export default async function ProfilePage({ params }: { params: { userId: string
         }
     }
   }
-  
+
   // Calculate Mutual Friends
   let mutualFriendsCount = 0;
   if (currentUserId && currentUserId !== user.id) {
