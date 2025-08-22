@@ -3,9 +3,10 @@ import { authOptions } from '@/lib/auth';
 import Link from 'next/link';
 import LogoutButton from './LogoutButton';
 import FriendRequests from './FriendRequests';
-import FindFriendsDialog from '@/components/friends/FindFriendsDialog'; // 1. Import the new dialog
+import FindFriendsDialog from '@/components/friends/FindFriendsDialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import TripInvitations from './TripInvitations'; // 1. Import the new component
 
 const getInitials = (name: string | null | undefined) => {
   if (!name) return 'U';
@@ -35,10 +36,9 @@ export default async function Navbar() {
       <div className="flex items-center justify-end gap-2 sm:gap-4">
         {session?.user ? (
           <>
-            {/* 2. Replace the old Link with the new Dialog component */}
             <FindFriendsDialog />
-            
             <FriendRequests />
+            <TripInvitations /> {/* 2. Add the component here */}
             
             <Link href={`/profile/${session.user.id}`}>
               <Avatar>

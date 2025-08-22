@@ -13,6 +13,17 @@ export async function POST(request: Request) {
   }
 
   try {
+     // Find the membership record to make sure it exists
+    const membership = await prisma.tripMembership.findUnique({
+        where: {
+            tripId_userId: { tripId, userId: currentUserId },
+        }
+    });
+
+    if (!membership) {
+        return NextResponse.json({ message: 'Invitation not found.' }, { status: 404 });
+    }
+    
     // Declining an invitation will delete the membership record
     await prisma.tripMembership.delete({
       where: {

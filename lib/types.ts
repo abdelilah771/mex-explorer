@@ -1,20 +1,43 @@
-import { Prisma } from '@prisma/client';
+// lib/types.ts
 
-// This Prisma validator automatically creates a type based on our query
-const userWithRelations = Prisma.validator<Prisma.UserDefaultArgs>()({
+import { Prisma, Trip } from '@prisma/client';
+
+// 1. A validator that EXACTLY matches your prisma query in page.tsx
+const profileQueryValidator = Prisma.validator<Prisma.UserDefaultArgs>()({
   include: {
-    posts: true,
-    trips: true,
+    posts: { 
+      orderBy: { createdAt: 'desc' }, 
+      take: 6 
+    },
+    // This now correctly reflects that we fetch memberships to get to the trips
+    tripMemberships: {
+      orderBy: { trip: { travelStartDate: 'asc' } },
+      take: 3,
+      include: {
+          trip: true
+      }
+    },
     achievements: true,
-    friends: true, // This was already here, which is great
-    _count: {
+    // This now correctly uses 'select' to only get specific friend fields
+    friends: {
+      take: 9, 
+      select: { id: true, name: true, image: true, email: true }
+    },
+    _count: { 
       select: { 
-        trips: true, 
+        tripMemberships: true,
         friends: true,
         friendsOf: true,
-      },
+      } 
     },
   },
 });
 
-export type UserProfile = Prisma.UserGetPayload<typeof userWithRelations>;
+// 2. This type represents the RAW data returned from Prisma
+type PrismaProfilePayload = Prisma.UserGetPayload<typeof profileQueryValidator>;
+
+// 3. This is the final, CLEAN type for your client component props
+// We extend the raw type but replace tripMemberships with a clean trips array
+export type UserProfile = Omit<PrismaProfilePayload, 'tripMemberships'> & {
+  trips: Trip[];
+};

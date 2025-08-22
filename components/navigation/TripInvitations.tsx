@@ -15,14 +15,34 @@ import {
 import { Plane, Check, X } from 'lucide-react';
 import { Trip } from '@prisma/client';
 
+interface TripInvitation {
+  tripId: string;
+  trip: {
+    id: string;
+    name: string;
+  }
+}
 
 export default function TripInvitations() {
   const router = useRouter();
-  const [invites, setInvites] = useState<{ trip: Trip }[]>([]);
+  const [invites, setInvites] = useState<TripInvitation[]>([]);
+  const [count, setCount] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // We would create a new API endpoint to fetch just pending invitations
-    // For now, this is a placeholder
+    const fetchInvites = async () => {
+      try {
+        const response = await fetch('/api/trips/invites');
+        const data = await response.json();
+        setInvites(data.invites || []);
+        setCount(data.count || 0);
+      } catch (error) {
+        console.error('Failed to fetch trip invitations:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchInvites();
   }, []);
 
   const handleResponse = async (tripId: string, action: 'accept' | 'decline') => {
@@ -32,8 +52,11 @@ export default function TripInvitations() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tripId }),
       });
+
       if (response.ok) {
         toast.success(`Invitation ${action}ed!`);
+        setInvites(invites.filter(inv => inv.tripId !== tripId));
+        setCount(prev => prev - 1);
         router.refresh();
       } else {
         toast.error('Failed to respond to invitation.');
@@ -48,14 +71,35 @@ export default function TripInvitations() {
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="icon" className="relative">
           <Plane className="h-5 w-5" />
-          {/* We'll add a notification count here later */}
+          {count > 0 && (
+            <div className="absolute top-1 right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white">
+              {count}
+            </div>
+          )}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-80">
         <DropdownMenuLabel>Trip Invitations</DropdownMenuLabel>
         <DropdownMenuSeparator />
-        {/* Here we would map over the fetched invitations */}
-        <DropdownMenuItem>No new invitations</DropdownMenuItem>
+        {isLoading ? (
+            <DropdownMenuItem>Loading...</DropdownMenuItem>
+        ) : invites.length > 0 ? (
+          invites.map((invite) => (
+            <DropdownMenuItem key={invite.tripId} className="flex items-center justify-between gap-2">
+              <span className="font-medium truncate">Invite to: {invite.trip.name}</span>
+              <div className="flex gap-1">
+                <Button size="icon" variant="ghost" className="h-7 w-7 text-green-600 hover:bg-green-100 hover:text-green-700" onClick={() => handleResponse(invite.tripId, 'accept')}>
+                  <Check className="h-4 w-4" />
+                </Button>
+                <Button size="icon" variant="ghost" className="h-7 w-7 text-red-600 hover:bg-red-100 hover:text-red-700" onClick={() => handleResponse(invite.tripId, 'decline')}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            </DropdownMenuItem>
+          ))
+        ) : (
+          <DropdownMenuItem>No new invitations</DropdownMenuItem>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );

@@ -4,23 +4,24 @@ import prisma from '@/lib/prisma';
 import UserProfileClient from '@/components/profile/UserProfileClient';
 import { UserProfile } from '@/lib/types';
 
-// --- THIS IS THE CORRECTED FUNCTION SIGNATURE ---
 export default async function ProfilePage({ params }: { params: { userId: string } }) {
   const session = await getServerSession(authOptions);
   const currentUserId = session?.user?.id;
 
+  // This is the corrected, complete query
   const user = await prisma.user.findUnique({
-    where: { id: params.userId }, // Now params.userId will be defined correctly
+    where: { id: params.userId },
     include: {
       posts: { 
         orderBy: { createdAt: 'desc' }, 
         take: 6 
       },
+      // --- THIS IS THE CORRECT WAY TO FETCH TRIPS ---
       tripMemberships: {
         orderBy: { trip: { travelStartDate: 'asc' } },
         take: 3,
         include: {
-            trip: true
+            trip: true // Include the actual trip data from the membership
         }
       },
       achievements: true,
@@ -30,7 +31,7 @@ export default async function ProfilePage({ params }: { params: { userId: string
       },
       _count: { 
         select: { 
-          tripMemberships: true, 
+          tripMemberships: true, // Count memberships instead of trips
           friends: true,
           friendsOf: true,
         } 
@@ -42,10 +43,11 @@ export default async function ProfilePage({ params }: { params: { userId: string
     return <div className="p-8 text-center">User not found.</div>;
   }
   
+  // Transform the data for the client component
   const trips = user.tripMemberships.map(membership => membership.trip);
   const userForClient = {
       ...user,
-      trips,
+      trips, // Add the cleaned trips array
       _count: {
           ...user._count,
           trips: user._count.tripMemberships,

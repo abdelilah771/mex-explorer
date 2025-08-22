@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
-import { TripRole } from '@prisma/client';
+import { TripRole, MembershipStatus } from '@prisma/client';
 
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
@@ -27,38 +27,43 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: 'Missing required fields' }, { status: 400 });
     }
 
-    const newTrip = await prisma.trip.create({
-      data: {
-        name,
-        destination,
-        travelStartDate: new Date(travelStartDate),
-        travelEndDate: new Date(travelEndDate),
-        budget: budget ? parseFloat(budget) : null,
-      },
-    });
+    // Use a transaction to ensure all database operations succeed or fail together
+    const newTrip = await prisma.$transaction(async (tx) => {
+      // 1. Create the new Trip
+      const trip = await tx.trip.create({
+        data: {
+          name,
+          destination,
+          travelStartDate: new Date(travelStartDate),
+          travelEndDate: new Date(travelEndDate),
+          budget: budget ? parseFloat(budget) : null,
+        },
+      });
 
-    // --- THIS IS THE FIX ---
-    // We explicitly define the type for the array here
-    const membersToCreate: { tripId: string; userId: string; role: TripRole }[] = [
-      {
-        tripId: newTrip.id,
-        userId: currentUserId,
-        role: TripRole.OWNER,
-      },
-    ];
-
-    if (friendIds && Array.isArray(friendIds)) {
-      friendIds.forEach((friendId: string) => {
-        membersToCreate.push({
-          tripId: newTrip.id,
+      // 2. Create the owner's membership with ACCEPTED status
+      await tx.tripMembership.create({
+        data: {
+          tripId: trip.id,
+          userId: currentUserId,
+          role: TripRole.OWNER,
+          status: MembershipStatus.ACCEPTED, // Set status to ACCEPTED
+        }
+      });
+      
+      // 3. Create PENDING invitations for invited friends
+      if (friendIds && Array.isArray(friendIds) && friendIds.length > 0) {
+        const membersToCreate = friendIds.map((friendId: string) => ({
+          tripId: trip.id,
           userId: friendId,
           role: TripRole.MEMBER,
+          status: MembershipStatus.PENDING, // Status is PENDING for invites
+        }));
+        await tx.tripMembership.createMany({
+          data: membersToCreate,
         });
-      });
-    }
-
-    await prisma.tripMembership.createMany({
-      data: membersToCreate,
+      }
+      
+      return trip;
     });
 
     return NextResponse.json(newTrip, { status: 201 });
