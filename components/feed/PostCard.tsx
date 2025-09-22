@@ -1,10 +1,18 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { toast } from "sonner";
-import Image from "next/legacy/image";
+import { toast } from 'sonner';
+import Image from 'next/legacy/image';
 import { Session } from 'next-auth';
+import { formatDistanceToNow } from 'date-fns';
+import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -15,13 +23,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+} from '@/components/ui/alert-dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { MoreHorizontal, Heart, MessageCircle, Share2, Trash2 } from 'lucide-react';
+import { MediaType } from '@prisma/client';
 
-// Define types
+// Type definitions
 interface Author {
   id: string;
   name: string | null;
@@ -37,14 +46,18 @@ interface Comment {
 interface Post {
   id: string;
   content: string;
-  imageUrl: string | null;
+  mediaUrl: string | null;
+  mediaType: MediaType | null;
   createdAt: string;
   author: Author;
   comments: Comment[];
   _count: {
     likes: number;
+    comments: number;
   };
+  likes: { userId: string }[];
 }
+
 interface PostCardProps {
   post: Post;
   session: Session | null;
@@ -52,23 +65,42 @@ interface PostCardProps {
 
 export default function PostCard({ post, session }: PostCardProps) {
   const router = useRouter();
+  const [isLiked, setIsLiked] = useState(false);
+  const [likeCount, setLikeCount] = useState(0);
   const [commentText, setCommentText] = useState('');
   const [isCommenting, setIsCommenting] = useState(false);
+  const [showComments, setShowComments] = useState(false);
   const isAuthor = post.author.id === session?.user?.id;
 
+  useEffect(() => {
+    setLikeCount(post._count.likes);
+    // THE FIX IS HERE: Use optional chaining (?.)
+    setIsLiked(post.likes?.length > 0);
+  }, [post]);
+
   const handleLike = async () => {
+    if (!session?.user?.id) {
+        toast.error("You must be logged in to like a post.");
+        return;
+    }
+    const originalLiked = isLiked;
+    const originalLikeCount = likeCount;
+    setIsLiked(!isLiked);
+    setLikeCount(isLiked ? likeCount - 1 : likeCount + 1);
     try {
       const response = await fetch(`/api/posts/${post.id}/like`, { method: 'POST' });
-      if (response.ok) {
-        router.refresh();
-      } else {
-        toast.error('Failed to like post.');
+      if (!response.ok) {
+        setIsLiked(originalLiked);
+        setLikeCount(originalLikeCount);
+        toast.error('Failed to update like status.');
       }
     } catch (error) {
+      setIsLiked(originalLiked);
+      setLikeCount(originalLikeCount);
       toast.error('An unexpected error occurred.');
     }
   };
-
+  
   const handleDelete = async () => {
     try {
       const response = await fetch(`/api/posts/${post.id}`, { method: 'DELETE' });
@@ -79,7 +111,7 @@ export default function PostCard({ post, session }: PostCardProps) {
         toast.error('Failed to delete post.');
       }
     } catch (error) {
-      toast.error('An error occurred.');
+      toast.error('An error occurred while deleting the post.');
     }
   };
 
@@ -101,98 +133,122 @@ export default function PostCard({ post, session }: PostCardProps) {
         toast.error('Failed to post comment.');
       }
     } catch (error) {
-      toast.error('An error occurred.');
+      toast.error('An error occurred while commenting.');
     } finally {
       setIsCommenting(false);
     }
   };
+  
+  const timeAgo = formatDistanceToNow(new Date(post.createdAt), { addSuffix: true });
 
   return (
-    <div className="rounded-xl border border-[#eef3e7] bg-white p-4">
-      {/* Card Header */}
-      <div className="flex w-full flex-row items-start justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <Avatar>
-            <AvatarImage src={post.author.image || `https://avatar.vercel.sh/${post.author.email}`} />
-            <AvatarFallback>{post.author.name?.charAt(0)}</AvatarFallback>
-          </Avatar>
-          <div>
-            <p className="text-sm font-bold text-[#151b0e]">{post.author.name}</p>
-            <p className="text-xs text-[#76974e]">{new Date(post.createdAt).toLocaleDateString()}</p>
-          </div>
+    <Card className="rounded-xl shadow-sm">
+      <CardHeader className="flex flex-row items-center gap-4 p-4">
+        <Avatar>
+          <AvatarImage src={post.author.image || undefined} />
+          <AvatarFallback>{post.author.name?.charAt(0)}</AvatarFallback>
+        </Avatar>
+        <div className="flex-1">
+          <p className="font-semibold text-sm">{post.author.name}</p>
+          <p className="text-xs text-slate-500">{timeAgo}</p>
         </div>
         {isAuthor && (
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="ghost" size="sm" className="text-xs text-destructive hover:bg-destructive/10">Delete</Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This action cannot be undone. This will permanently delete your post.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                  Continue
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon"><MoreHorizontal className="h-5 w-5" /></Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                   <div className="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 text-red-500">
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete Post
+                  </div>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This action cannot be undone. This will permanently delete your post.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">
+                      Delete
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </DropdownMenuContent>
+          </DropdownMenu>
         )}
-      </div>
-      
-      {/* Post Content */}
-      <p className="my-4 text-sm text-[#151b0e]">{post.content}</p>
+      </CardHeader>
 
-      {/* Image Grid */}
-      {post.imageUrl && (
-        <div className="mt-4 w-full overflow-hidden rounded-xl">
-           <Image src={post.imageUrl} alt="Post image" width={800} height={600} className="w-full object-cover" />
-        </div>
-      )}
-      
-      {/* Action Buttons */}
-      <div className="flex flex-wrap gap-4 px-4 py-2">
-        <button onClick={handleLike} className="flex items-center justify-center gap-2">
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" className="text-[#76974e] hover:text-red-500" viewBox="0 0 256 256"><path d="M178,32c-20.65,0-38.73,8.88-50,23.89C116.73,40.88,98.65,32,78,32A62.07,62.07,0,0,0,16,94c0,70,103.79,126.66,108.21,129a8,8,0,0,0,7.58,0C136.21,220.66,240,164,240,94A62.07,62.07,0,0,0,178,32ZM128,206.8C109.74,196.16,32,147.69,32,94A46.06,46.06,0,0,1,78,48c19.45,0,35.78,10.36,42.6,27a8,8,0,0,0,14.8,0c6.82-16.67,23.15-27,42.6-27a46.06,46.06,0,0,1,46,46C224,147.61,146.24,196.15,128,206.8Z"></path></svg>
-          <p className="text-[13px] font-bold text-[#76974e]">{post._count.likes}</p>
-        </button>
-      </div>
-
-      {/* Comments Section */}
-      <div className="mt-4 space-y-3 border-t border-[#eef3e7] pt-4">
-        {post.comments.map((comment) => (
-          <div key={comment.id} className="flex items-start gap-2 text-sm">
-            <Avatar className="h-6 w-6">
-              <AvatarImage src={comment.author.image || `https://avatar.vercel.sh/${comment.author.email}`} />
-              <AvatarFallback className="text-xs">{comment.author.name?.charAt(0)}</AvatarFallback>
-            </Avatar>
-            <div>
-              <p className="rounded-lg bg-gray-100 px-3 py-2">
-                <strong className="font-semibold">{comment.author.name}</strong>
-                <span className="ml-2 text-gray-800">{comment.text}</span>
-              </p>
-            </div>
+      <CardContent className="px-4 pb-2">
+        <p className="text-sm text-slate-800 whitespace-pre-wrap mb-4">{post.content}</p>
+        {post.mediaUrl && (
+          <div className="mt-4 w-full overflow-hidden rounded-lg border">
+            {post.mediaType === 'IMAGE' ? (
+              <Image src={post.mediaUrl} alt="Post media" width={800} height={600} className="w-full object-cover" />
+            ) : post.mediaType === 'VIDEO' ? (
+              <video src={post.mediaUrl} controls className="w-full h-auto" playsInline loop />
+            ) : null}
           </div>
-        ))}
-      </div>
-      
-      {/* Add Comment Form */}
-      <form onSubmit={handleCommentSubmit} className="mt-4 flex gap-2 border-t border-[#eef3e7] pt-4">
-        <Textarea
-          value={commentText}
-          onChange={(e) => setCommentText(e.target.value)}
-          placeholder="Write a comment..."
-          className="flex-1 resize-none rounded-full bg-gray-100 px-4 py-2 text-sm"
-          rows={1}
-        />
-        <Button type="submit" disabled={isCommenting} className="rounded-full">
-          {isCommenting ? 'Posting...' : 'Post'}
-        </Button>
-      </form>
-    </div>
+        )}
+      </CardContent>
+
+      <CardFooter className="flex flex-col items-start p-4">
+        <div className="flex items-center gap-4 text-xs text-slate-500 mb-2">
+           <p>{likeCount} {likeCount === 1 ? 'Like' : 'Likes'}</p>
+           <p>{post._count.comments} {post._count.comments === 1 ? 'Comment' : 'Comments'}</p>
+        </div>
+        <div className="w-full grid grid-cols-3 gap-2 border-t pt-2">
+          <Button variant="ghost" size="sm" onClick={handleLike} className={`flex items-center gap-2 group transition-colors ${isLiked ? 'text-red-500' : 'text-slate-600'}`}>
+            <Heart className={`h-5 w-5 group-hover:fill-red-200 transition-colors ${isLiked ? 'fill-red-500' : 'fill-transparent'}`} />
+            Like
+          </Button>
+          <Button variant="ghost" size="sm" className="flex items-center gap-2" onClick={() => setShowComments(!showComments)}>
+            <MessageCircle className="h-5 w-5" /> Comment
+          </Button>
+          <Button variant="ghost" size="sm" className="flex items-center gap-2">
+            <Share2 className="h-5 w-5" /> Share
+          </Button>
+        </div>
+        
+        {showComments && (
+          <div className="w-full mt-4 space-y-4">
+            <form onSubmit={handleCommentSubmit} className="flex items-start gap-2">
+              <Avatar className="h-8 w-8">
+                <AvatarImage src={session?.user?.image ?? undefined} />
+                <AvatarFallback>{session?.user?.name?.charAt(0)}</AvatarFallback>
+              </Avatar>
+              <Textarea
+                value={commentText}
+                onChange={(e) => setCommentText(e.target.value)}
+                placeholder="Write a comment..."
+                className="flex-1 resize-none"
+                rows={1}
+              />
+              <Button type="submit" size="sm" disabled={isCommenting}>
+                {isCommenting ? '...' : 'Post'}
+              </Button>
+            </form>
+            {post.comments.map((comment) => (
+              <div key={comment.id} className="flex items-start gap-2 text-sm pl-10">
+                <Avatar className="h-8 w-8">
+                  <AvatarImage src={comment.author.image || undefined} />
+                  <AvatarFallback className="text-xs">{comment.author.name?.charAt(0)}</AvatarFallback>
+                </Avatar>
+                <div className="bg-slate-100 rounded-lg px-3 py-2">
+                  <p className="font-semibold">{comment.author.name}</p>
+                  <p className="text-slate-700">{comment.text}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardFooter>
+    </Card>
   );
 }

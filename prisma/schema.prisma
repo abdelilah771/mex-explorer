@@ -64,6 +64,12 @@ enum MembershipStatus {
   DECLINED
 }
 
+enum MediaType {
+  IMAGE
+  VIDEO
+}
+
+
 // --- Models ---
 model User {
   id               String    @id @default(cuid())
@@ -163,13 +169,18 @@ model Reward {
 }
 
 model Post {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   content   String
-  imageUrl  String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  
+  // --- MODIFIER CES LIGNES ---
+  mediaUrl  String?   // Renommé de imageUrl à mediaUrl
+  mediaType MediaType? // Ajout du type de média
+  // -------------------------
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
   authorId  String
-  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  author    User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
   likes     Like[]
   comments  Comment[]
 }

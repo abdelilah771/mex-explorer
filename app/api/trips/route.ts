@@ -1,7 +1,10 @@
+// app/api/trips/route.ts
+
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
-import { PrismaClient, TripRole } from '@prisma/client';
+// --- 1. Importer MembershipStatus ---
+import { PrismaClient, TripRole, MembershipStatus } from '@prisma/client';
 import prisma from '@/lib/prisma';
 
 export async function POST(request: Request) {
@@ -13,7 +16,6 @@ export async function POST(request: Request) {
   }
 
   try {
-    // Add budget to the destructured body
     const { name, destination, travelStartDate, travelEndDate, budget } = await request.json();
 
     if (!name || !destination || !travelStartDate || !travelEndDate) {
@@ -26,11 +28,13 @@ export async function POST(request: Request) {
         destination,
         travelStartDate: new Date(travelStartDate),
         travelEndDate: new Date(travelEndDate),
-        budget: budget ? parseFloat(budget) : null, // Save the budget
+        budget: budget ? parseFloat(budget) : null,
         members: {
           create: {
             userId: currentUserId,
             role: TripRole.OWNER,
+            // --- 2. Ajouter cette ligne pour définir le statut ---
+            status: MembershipStatus.ACCEPTED,
           },
         },
       },

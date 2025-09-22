@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
+import { MediaType } from '@prisma/client';
 
 const POINTS_PER_POST = 10;
 
@@ -15,16 +16,25 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { content, imageUrl } = await request.json();
-    if (!content) {
-      return NextResponse.json({ message: 'Content is required' }, { status: 400 });
+    const { content, mediaUrl, mediaType } = (await request.json()) as {
+      content: string;
+      mediaUrl?: string;
+      mediaType?: MediaType;
+    };
+
+    if (!content && !mediaUrl) {
+      return NextResponse.json(
+        { message: 'Content or media is required' },
+        { status: 400 }
+      );
     }
 
-    const [newPost, updatedUser] = await prisma.$transaction([
+    const [newPost] = await prisma.$transaction([
       prisma.post.create({
         data: {
           content,
-          imageUrl,
+          mediaUrl,
+          mediaType,
           authorId: userId,
         },
       }),
@@ -38,23 +48,31 @@ export async function POST(request: Request) {
       }),
     ]);
 
-    return NextResponse.json({ ...newPost, pointsAwarded: POINTS_PER_POST }, { status: 201 });
-
+    return NextResponse.json(
+      { ...newPost, pointsAwarded: POINTS_PER_POST },
+      { status: 201 }
+    );
   } catch (error) {
     console.error('POST_CREATION_ERROR', error);
-    return NextResponse.json({ message: 'Error creating post' }, { status: 500 });
+    return NextResponse.json(
+      { message: 'Error creating post' },
+      { status: 500 }
+    );
   }
 }
 
 // Handler for fetching all posts for the feed
-export async function GET() {
+export async function GET(request: Request) {
+  const session = await getServerSession(authOptions);
+  const userId = session?.user?.id;
+
   try {
     const posts = await prisma.post.findMany({
       orderBy: { createdAt: 'desc' },
       include: {
         author: {
           select: {
-            id: true, // This is required for the delete button logic
+            id: true,
             name: true,
             image: true,
             email: true,
@@ -69,13 +87,30 @@ export async function GET() {
           },
         },
         _count: {
-          select: { likes: true },
+          select: {
+            likes: true,
+            comments: true,
+          },
         },
+        // Conditionally include likes based on the current user's session
+        likes: userId
+          ? {
+              where: {
+                userId: userId,
+              },
+              select: {
+                userId: true,
+              },
+            }
+          : false, // If no user is logged in, do not include the likes relation
       },
     });
     return NextResponse.json(posts, { status: 200 });
   } catch (error) {
     console.error('POST_FETCH_ERROR', error);
-    return NextResponse.json({ message: 'Error fetching posts' }, { status: 500 });
+    return NextResponse.json(
+      { message: 'Error fetching posts' },
+      { status: 500 }
+    );
   }
 }
