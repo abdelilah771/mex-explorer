@@ -1,17 +1,15 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Inter } from "next/font/google"; // 1. Import Inter from next/font/google
 import "./globals.css";
 import { NextAuthProvider } from "@/components/auth/NextAuthProvider";
 import { ThemeProvider } from "@/components/theme-provider";
 import Navbar from "@/components/navigation/Navbar";
-import { Toaster } from "@/components/ui/sonner"; // 1. Import the new Toaster
+import { Toaster } from "@/components/ui/sonner";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+// 2. Initialize the Inter font
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-sans", // 3. Use a standard variable name
 });
 
 export const metadata: Metadata = {
@@ -26,9 +24,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+      <body className={`${inter.variable} antialiased`}>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
@@ -38,7 +34,7 @@ export default function RootLayout({
           <NextAuthProvider>
             <Navbar />
             <main>{children}</main>
-            <Toaster /> {/* 2. Add the new Toaster here */}
+            <Toaster />
           </NextAuthProvider>
         </ThemeProvider>
       </body>

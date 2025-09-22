@@ -24,7 +24,7 @@ export default function LoginPage() {
       </div>
       <div className="hidden bg-muted lg:block">
         <Image
-          src="/placeholder.svg" // We'll add a real image here later
+          src="/login.jpg" // We'll add a real image here later
           alt="Image of Marrakech"
           width="1920"
           height="1080"
