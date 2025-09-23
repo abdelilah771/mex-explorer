@@ -5,7 +5,14 @@ import UserProfileClient from '@/components/profile/UserProfileClient';
 import { UserProfile } from '@/lib/types';
 import { notFound } from 'next/navigation';
 
-export default async function ProfilePage({ params }: { params: { userId: string } }) {
+// Define the correct type for the page's props
+interface ProfilePageProps {
+  params: {
+    userId: string;
+  };
+}
+
+export default async function ProfilePage({ params }: ProfilePageProps) {
   const session = await getServerSession(authOptions);
   const currentUserId = session?.user?.id;
 
@@ -16,11 +23,10 @@ export default async function ProfilePage({ params }: { params: { userId: string
         orderBy: { createdAt: 'desc' }, 
         take: 6 
       },
-      // Correctly fetch trips via the join table
       tripMemberships: {
         orderBy: { trip: { travelStartDate: 'asc' } },
         include: {
-            trip: true // Include the actual trip data
+            trip: true
         }
       },
       achievements: true,
@@ -41,11 +47,8 @@ export default async function ProfilePage({ params }: { params: { userId: string
     notFound();
   }
   
-  // --- Server-Side Data Transformation ---
-  // Create a clean `trips` array from the membership data
   const trips = user.tripMemberships.map(membership => membership.trip);
   
-  // Prepare the final user object for the client to match the UserProfile type
   const userForClient = {
       ...user,
       trips,
