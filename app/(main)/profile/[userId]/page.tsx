@@ -5,19 +5,22 @@ import UserProfileClient from '@/components/profile/UserProfileClient';
 import { UserProfile } from '@/lib/types';
 import { notFound } from 'next/navigation';
 
-// Define the correct type for the page's props
+// Updated interface with Promise<> wrapper
 interface ProfilePageProps {
-  params: {
+  params: Promise<{
     userId: string;
-  };
+  }>;
 }
 
 export default async function ProfilePage({ params }: ProfilePageProps) {
+  // Await the params before using them
+  const { userId } = await params;
+  
   const session = await getServerSession(authOptions);
   const currentUserId = session?.user?.id;
 
   const user = await prisma.user.findUnique({
-    where: { id: params.userId },
+    where: { id: userId }, // Use the awaited userId
     include: {
       posts: { 
         orderBy: { createdAt: 'desc' }, 
@@ -58,7 +61,7 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
       }
   };
 
-  // --- Server-Side Logic for Friendship Status ---
+  // Server-Side Logic for Friendship Status
   let friendshipStatus: 'none' | 'sent' | 'received' | 'friends' = 'none';
   let mutualFriendsCount = 0;
 
