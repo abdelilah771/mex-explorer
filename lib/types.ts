@@ -4,22 +4,33 @@ import { Prisma, Trip, User , Post, Achievement} from '@prisma/client';
 
 
 // This will be our single source of truth for the user profile shape
-export type UserProfile = User & {
-  posts: Post[];
-  trips: Trip[];
-  achievements: Achievement[];
-  // Define the exact shape of the friend object you are selecting
-  friends: {
-    id: string;
-    name: string | null;
-    image: string | null;
-  }[];
+// Generate type that matches your exact Prisma query
+export type UserProfile = Prisma.UserGetPayload<{
+  include: {
+    posts: { orderBy: { createdAt: 'desc' }, take: 6 };
+    tripMemberships: {
+      include: { trip: true };
+      orderBy: { trip: { travelStartDate: 'asc' } };
+    };
+    achievements: true;
+    friends: {
+      take: 9;
+      select: { id: true; name: true; image: true };
+    };
+    _count: {
+      select: {
+        tripMemberships: true;
+        friends: true;
+      };
+    };
+  };
+}> & {
+  trips: Prisma.TripGetPayload<{}>[];
   _count: {
     friends: number;
     trips: number;
   };
 };
-
 // 1. A validator that EXACTLY matches your prisma query in page.tsx
 const profileQueryValidator = Prisma.validator<Prisma.UserDefaultArgs>()({
   include: {
